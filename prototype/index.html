@@ -522,7 +522,7 @@ const REV=[
   say:["Apologise for the wait: one hygienist was out on Tuesday","Offer a free follow-up with Jen","Don't mention treatment in any public reply"],
   reply:"Thank you for speaking with us. We're glad we could talk this through.",act:"Call Priya"},
  {id:2,nm:"\"J\"",st:1,ag:"6h",tier:["md","Medium"],sn:"Worst service ever. Never coming back.",
-  match:[["","CRM match","No visit or payment matches this name"],["wait","Text-in line","Posted 6h ago: 'Text CARE to the number on this profile'"],["","Evidence pack","Day 0 of 14. Built only if nobody texts and no visit matches"]],
+  match:[["","CRM match","No visit or payment matches this name"],["wait","Text-in line","Posted 6h ago: 'Text CARE to the number on this profile'"],["","Likely fake?","Day 0 of 14. Flagged for you to report only if nobody texts and no visit or payment matches"]],
   brief:[["Visit","Unknown"],["Channel","Waiting for them to text in"],["Consent","Captured when they text"]],
   say:["Don't say 'you're not our patient' in public","Not texting in is one signal, never proof"],
   reply:"We're sorry to hear this. We'd like to make it right. Text CARE to the number on this profile and we'll call you.",act:"Keep watching"},
@@ -557,8 +557,8 @@ tabs('#cside',enterClinic);
 
 /* ---------- agency ---------- */
 const V={
- dental:{n:"Dental",d:"Healthcare rules on",trig:"Appointment marked done",delay:"2 hours, SMS first",policy:"4–5★ draft until earned · 1–3★ to owner · health words always a person",comp:"Patient privacy mode locked on · BAA required",voice:"Human call for High · AI voice for Medium with consent"},
- med:{n:"Med spa",d:"Healthcare rules on",trig:"Treatment marked done",delay:"3 hours, SMS first",policy:"Same as dental · photos never referenced in replies",comp:"Patient privacy mode locked on · BAA required",voice:"Human call for High · AI voice for Medium with consent"},
+ dental:{n:"Dental",d:"Healthcare rules on",trig:"Appointment marked done",delay:"2 hours, SMS first",policy:"4–5★ draft until earned · 1–3★ to owner · health words always a person",comp:"Patient privacy mode locked on · BAA required",voice:"Human call for High · SMS for Medium (AI voice after privacy review)"},
+ med:{n:"Med spa",d:"Healthcare rules on",trig:"Treatment marked done",delay:"3 hours, SMS first",policy:"Same as dental · photos never referenced in replies",comp:"Patient privacy mode locked on · BAA required",voice:"Human call for High · SMS for Medium (AI voice after privacy review)"},
  home:{n:"Home services",d:"Job-based",trig:"Job closed and invoice paid",delay:"1 hour, SMS first",policy:"4–5★ auto after 4 weeks · safety words always a person",comp:"Standard",voice:"Owner calls High · AI voice for Medium with consent"},
  rest:{n:"Restaurant",d:"Visit-based",trig:"Card payment captured",delay:"Next morning, email first",policy:"4–5★ auto after 2 weeks · food safety always a person",comp:"Standard",voice:"SMS only (low ticket)"}
 };
