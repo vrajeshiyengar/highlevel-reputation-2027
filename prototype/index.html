@@ -4,242 +4,589 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<title>One Bad Visit: the Reputation Loop</title>
+<title>Reputation Loop Prototype</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Lora:wght@600&display=swap">
 <style>
-/* Layout: story panel (left) + product screen (right); a bet-labelled progress rail on top. Light, single look matching the doc. */
+/* Three views of one loop: the patient (white-labelled as the clinic), the clinic owner's portal, and the agency/HighLevel platform.
+   Palette follows the strategy doc: navy ink, one orange accent, semantic red/amber/green. No gradients, no glass, no glow. */
 :root{
-  --ink:#10286e; --ink2:#2a3f80; --mut:#5b6b93; --or:#d9822b; --orS:#fdf0e3; --fill:#e8eef9; --line:#c9d4ea; --bg:#f6f8fc; --card:#fff;
-  --red:#b4442e; --redS:#fbe9e5; --amb:#a15c07; --ambS:#fdf3e2; --grn:#2f7d4f; --grnS:#e6f3ea; --blu:#1d5fa8; --bluS:#e6eff9;
-  --f:"Public Sans",Arial,sans-serif; --m:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --ink:#10286e; --ink2:#33467e; --mut:#66749a; --line:#d7deec; --line2:#e9edf5; --bg:#f4f6fa; --card:#ffffff;
+  --or:#d9822b; --orS:#fbeedd;
+  --red:#b4442e; --redS:#f9e6e1; --amb:#9a5b0c; --ambS:#fbf0dc; --grn:#2f7d4f; --grnS:#e3f1e8; --blu:#1d5fa8; --bluS:#e4edf8;
+  --clinic:#0d6b5c; --clinicS:#e2f0ec;
+  --f:"IBM Plex Sans",system-ui,sans-serif; --m:"IBM Plex Mono",ui-monospace,Menlo,monospace; --brand:"Lora",Georgia,serif;
+  --r:8px; --ease:cubic-bezier(.2,.7,.2,1);
 }
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);font-size:15px;line-height:1.5}
-.wrap{max-width:1180px;margin:0 auto;padding:20px max(16px,env(safe-area-inset-right)) 40px max(16px,env(safe-area-inset-left));display:grid;gap:16px}
-header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:6px 16px}
-h1{font-size:20px;margin:0}
-.sub{color:var(--mut);font-size:13px}
-.sub a{color:var(--or)}
-.rail{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
-.rail button{all:unset;cursor:pointer;display:grid;gap:4px;font-size:11.5px;color:var(--mut);text-align:left}
-.rail button i{display:block;height:5px;border-radius:3px;background:var(--line)}
-.rail button.done i{background:var(--ink)} .rail button.cur i{background:var(--or)} .rail button.cur{color:var(--ink);font-weight:700}
-.rail button:focus-visible{outline:2px solid var(--or);outline-offset:3px;border-radius:4px}
-@media (max-width:760px){.rail span{display:none}}
-.stage{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:18px;align-items:start}
-@media (max-width:900px){.stage{grid-template-columns:1fr}}
-.story{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;display:grid;gap:12px}
-.step{font-family:var(--m);font-size:12px;color:var(--mut)}
-.story h2{margin:0;font-size:24px;line-height:1.25;text-wrap:balance}
-.bet{justify-self:start;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--orS);color:var(--or);letter-spacing:.02em}
-.story p{margin:0;color:var(--ink2)}
-.knows{background:var(--bg);border-radius:8px;padding:10px 12px;font-size:13px}
-.knows b{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin-bottom:4px}
-.knows ul{margin:0;padding-left:18px}
-.metric{display:flex;gap:10px;align-items:center;border-top:1px solid var(--line);padding-top:12px;font-size:13px}
-.metric .k{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
-.metric .v{font-weight:700}
-.nav{display:flex;gap:8px;justify-content:space-between}
-.btn{font:inherit;font-weight:600;font-size:14px;border-radius:8px;padding:9px 16px;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);font-size:14.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit}
+.mono{font-family:var(--m);font-variant-numeric:tabular-nums}
+.wrap{max-width:1240px;margin:0 auto;padding:18px max(16px,env(safe-area-inset-right)) 48px max(16px,env(safe-area-inset-left))}
+
+/* top bar */
+.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;justify-content:space-between;margin-bottom:16px}
+.top h1{margin:0;font-size:17px;font-weight:600;letter-spacing:-.005em}
+.top .sub{font-size:13px;color:var(--mut)}
+.top .sub a{color:var(--ink);text-underline-offset:3px}
+.views{display:flex;gap:2px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:3px;position:relative}
+.views button{all:unset;cursor:pointer;padding:8px 14px;border-radius:7px;font-size:13.5px;font-weight:500;color:var(--mut);position:relative;z-index:1;transition:color .2s}
+.views button[aria-selected="true"]{color:#fff}
+.views .pill{position:absolute;top:3px;bottom:3px;border-radius:7px;background:var(--ink);transition:left .35s var(--ease),width .35s var(--ease)}
+.views button:focus-visible{outline:2px solid var(--or);outline-offset:2px}
+.views small{display:block;font-size:11px;font-weight:400;opacity:.75}
+@media (max-width:700px){.views{width:100%}.views button{flex:1;text-align:center;padding:8px 6px}.views small{display:none}}
+
+/* caption strip that ties each scene to the strategy */
+.why{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px;margin-bottom:14px;font-size:13.5px}
+.why .tag{font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--orS);color:var(--or);white-space:nowrap}
+.why .metric{font-size:12px;color:var(--mut);white-space:nowrap}
+.why .metric b{color:var(--ink);font-weight:600}
+@media (max-width:800px){.why{grid-template-columns:1fr}.why .metric{white-space:normal}}
+
+.view{display:none}
+.view.on{display:block;animation:fade .4s var(--ease)}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ========== PATIENT VIEW ========== */
+.pv{display:grid;grid-template-columns:minmax(0,1fr) 340px minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:1000px){.pv{grid-template-columns:1fr;justify-items:center}.pv .side{max-width:520px;width:100%}}
+.scenes{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.scenes button{all:unset;cursor:pointer;display:grid;grid-template-columns:52px 1fr;gap:10px;padding:10px 12px;border-radius:var(--r);transition:background .2s}
+.scenes button:hover{background:var(--card)}
+.scenes button[aria-current="true"]{background:var(--card);box-shadow:0 0 0 1px var(--line)}
+.scenes .t{font-family:var(--m);font-size:12px;color:var(--mut);padding-top:2px}
+.scenes .h{font-weight:600;font-size:13.5px}
+.scenes .d{font-size:12.5px;color:var(--mut)}
+.scenes button:focus-visible{outline:2px solid var(--or)}
+.ctrl{display:flex;gap:8px;margin-top:12px}
+.btn{cursor:pointer;border:1px solid var(--line);background:var(--card);border-radius:7px;padding:8px 14px;font-size:13.5px;font-weight:500;transition:background .15s,border-color .15s,transform .1s}
+.btn:hover{border-color:var(--ink2)}
+.btn:active{transform:translateY(1px)}
 .btn.p{background:var(--ink);border-color:var(--ink);color:#fff}
-.btn:disabled{opacity:.4;cursor:default}
 .btn:focus-visible{outline:2px solid var(--or);outline-offset:2px}
-.screen{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;min-height:460px;display:grid;gap:12px;align-content:start}
-.cap{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);font-weight:700}
-.chip{display:inline-block;font-size:11px;font-weight:700;border-radius:999px;padding:2px 8px;white-space:nowrap}
-.hi{background:var(--redS);color:var(--red)}.md{background:var(--ambS);color:var(--amb)}.lo{background:var(--grnS);color:var(--grn)}.ps{background:var(--bluS);color:var(--blu)}.nt{background:var(--bg);color:var(--mut);border:1px solid var(--line)}
-.row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start}
-.phone{width:290px;max-width:100%;border:10px solid #1f2b4d;border-radius:30px;background:#f2f4f8;padding:14px 10px;display:grid;gap:8px;min-height:420px;align-content:start}
-.phone .top{font-size:11px;color:var(--mut);text-align:center}
-.sms{background:#fff;border-radius:14px;padding:9px 11px;font-size:13px;max-width:92%;box-shadow:0 1px 0 rgba(16,40,110,.08)}
-.sms.me{justify-self:end;background:var(--ink);color:#fff}
-.notif{background:#fff;border-radius:14px;padding:10px 12px;font-size:13px;display:grid;gap:4px;box-shadow:0 1px 0 rgba(16,40,110,.08)}
-.notif .t{font-weight:700}
-.panel{flex:1;min-width:240px;border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:8px;font-size:13px}
-.ev{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:start}
-.ev .d{width:10px;height:10px;border-radius:50%;background:var(--ink);margin-top:5px}
-.ev .d.o{background:var(--or)} .ev .d.g{background:var(--grn)} .ev .d.x{background:var(--line)}
-.mono{font-family:var(--m);font-size:12.5px}
-.review{border-left:3px solid var(--red);padding:6px 12px;background:var(--bg);border-radius:0 8px 8px 0}
-.stars{font-family:var(--m);color:var(--amb)}
-.grid{display:grid;grid-template-columns:auto repeat(3,1fr);gap:4px;font-size:12px;text-align:center;max-width:420px}
-.grid div{padding:7px 4px;border-radius:6px;background:var(--bg);color:var(--mut)}
-.grid .h{background:none;font-weight:700}
-.grid .on{outline:2px solid var(--or);background:var(--orS);color:var(--ink);font-weight:700}
-.lad{list-style:none;margin:0;padding:0;display:grid;gap:8px}
-.lad li{display:grid;grid-template-columns:24px 1fr;gap:8px;font-size:13px}
-.dot{width:20px;height:20px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--mut)}
-.ok .dot{background:var(--ink);border-color:var(--ink);color:#fff}
-.wait .dot{border-color:var(--or);color:var(--or)}
-.bar{height:10px;border-radius:5px;background:var(--fill);overflow:hidden}.bar i{display:block;height:100%;background:var(--ink)}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
-.kpi{border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:6px}
-.kpi .n{font-family:var(--m);font-size:22px;font-weight:500}
+.behind{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:grid;gap:10px}
+.behind .cap{font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--mut)}
+.behind ul{margin:0;padding-left:18px;display:grid;gap:4px;font-size:13.5px}
+
+.phone{width:340px;max-width:100%;height:680px;border-radius:44px;background:#0f1a3a;padding:12px;position:relative}
+.phone .scr{height:100%;border-radius:34px;background:#fff;overflow:hidden;position:relative;display:flex;flex-direction:column}
+.status{display:flex;justify-content:space-between;padding:12px 22px 6px;font-size:12px;font-weight:600}
+.notch{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:96px;height:26px;border-radius:14px;background:#0f1a3a}
+.app{flex:1;display:flex;flex-direction:column;min-height:0}
+.apphd{display:flex;align-items:center;gap:10px;padding:8px 16px 10px;border-bottom:1px solid var(--line2)}
+.av{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:600;font-size:13px;flex:none}
+.av.c{background:var(--clinicS);color:var(--clinic);font-family:var(--brand)}
+.apphd b{display:block;font-size:14px}
+.apphd span{font-size:11.5px;color:var(--mut)}
+.thread{flex:1;overflow:auto;padding:14px 12px;display:flex;flex-direction:column;gap:8px;background:#fafbfd}
+.bub{max-width:82%;padding:9px 12px;border-radius:16px;font-size:13.5px;line-height:1.4;background:#eceff5;align-self:flex-start;opacity:0;transform:translateY(8px) scale(.98);animation:pop .45s var(--ease) forwards}
+.bub.me{align-self:flex-end;background:var(--clinic);color:#fff}
+.bub .lnk{display:block;margin-top:6px;padding:8px 10px;border-radius:10px;background:#fff;color:var(--ink);font-size:12.5px}
+.bub .lnk b{display:block;font-size:13px}
+.ts{align-self:center;font-size:11px;color:var(--mut);opacity:0;animation:pop .3s var(--ease) forwards}
+@keyframes pop{to{opacity:1;transform:none}}
+.typing{align-self:flex-start;background:#eceff5;border-radius:16px;padding:10px 12px;display:flex;gap:4px;opacity:0;animation:pop .2s forwards}
+.typing i{width:6px;height:6px;border-radius:50%;background:#9aa6c2;animation:blink 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes blink{0%,100%{opacity:.3}50%{opacity:1}}
+
+/* google review mock (simplified, not a copy of Google's UI) */
+.gpage{flex:1;overflow:auto;padding:14px 16px;display:grid;gap:12px;align-content:start}
+.gpage h3{margin:0;font-size:17px}
+.gstars{display:flex;gap:6px}
+.gstars span{font-size:28px;color:#c8cfdf;transition:color .2s,transform .2s}
+.gstars span.on{color:#e3a008;transform:scale(1.08)}
+.field{border:1px solid var(--line);border-radius:10px;padding:10px;font-size:13.5px;min-height:96px}
+.caret::after{content:"";display:inline-block;width:1px;height:15px;background:var(--ink);vertical-align:-2px;animation:blink 1s infinite}
+.post{justify-self:end;background:#1a56c9;color:#fff;border-radius:18px;padding:7px 16px;font-size:13px;font-weight:600}
+.rv{border-top:1px solid var(--line2);padding-top:10px;display:grid;gap:6px;font-size:13.5px}
+.rv .who{display:flex;gap:8px;align-items:center;font-size:13px}
+.owner{margin-left:14px;padding:8px 10px;background:var(--bg);border-radius:8px;font-size:13px;opacity:0;animation:pop .5s .2s var(--ease) forwards}
+.owner b{font-size:12px}
+
+/* incoming call */
+.call{flex:1;background:#13224d;color:#fff;display:flex;flex-direction:column;align-items:center;padding:56px 20px 30px;gap:10px;text-align:center}
+.call .av{width:76px;height:76px;font-size:24px;background:#fff;margin-bottom:6px}
+.call .ring{animation:ring 1.6s infinite}
+@keyframes ring{0%{box-shadow:0 0 0 0 rgba(255,255,255,.35)}70%{box-shadow:0 0 0 18px rgba(255,255,255,0)}100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}}
+.call .lines{margin-top:18px;display:grid;gap:8px;text-align:left;width:100%}
+.call .ln{font-size:13px;background:rgba(255,255,255,.08);border-radius:10px;padding:8px 10px;opacity:0;animation:pop .45s var(--ease) forwards}
+.call .ln b{color:#ffd7a8;font-weight:600}
+.call .end{margin-top:auto;display:flex;gap:40px}
+.call .end span{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;font-size:12px}
+
+/* ========== DESKTOP APP SHELL (clinic + agency) ========== */
+.appwin{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:grid;grid-template-columns:210px minmax(0,1fr);min-height:620px}
+@media (max-width:860px){.appwin{grid-template-columns:1fr}}
+.side{border-right:1px solid var(--line2);padding:14px 10px;display:flex;flex-direction:column;gap:2px;background:#fbfcfe}
+@media (max-width:860px){.side{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line2)}}
+.acct{display:flex;align-items:center;gap:9px;padding:4px 8px 14px}
+.acct .av{border-radius:8px}
+.acct b{display:block;font-size:13.5px;line-height:1.2}
+.acct span{font-size:11.5px;color:var(--mut)}
+@media (max-width:860px){.acct{padding:4px 8px}}
+.side button{all:unset;cursor:pointer;padding:8px 10px;border-radius:7px;font-size:13.5px;color:var(--ink2);display:flex;justify-content:space-between;gap:8px;white-space:nowrap;transition:background .15s}
+.side button:hover{background:var(--line2)}
+.side button[aria-selected="true"]{background:var(--ink);color:#fff}
+.side button:focus-visible{outline:2px solid var(--or)}
+.side .count{font-family:var(--m);font-size:11.5px;padding:0 6px;border-radius:999px;background:var(--orS);color:var(--or)}
+.side button[aria-selected="true"] .count{background:rgba(255,255,255,.2);color:#fff}
+.main{padding:20px 22px;min-width:0}
+.pane{display:none}.pane.on{display:block;animation:fade .35s var(--ease)}
+.ph{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:16px}
+.ph h2{margin:0;font-size:19px;font-weight:600}
+.ph span{font-size:12.5px;color:var(--mut)}
+
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:1000px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{border:1px solid var(--line2);border-radius:var(--r);padding:12px 14px;display:grid;gap:4px}
 .kpi .l{font-size:12px;color:var(--mut)}
-.cmp{display:grid;grid-template-columns:70px 1fr 54px;gap:6px;align-items:center;font-size:12px}
-.q{display:grid;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
-.q div{display:grid;grid-template-columns:auto 1fr auto;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);font-size:13px;align-items:center}
-.q div:last-child{border-bottom:0}
-.note{font-size:12px;color:var(--mut)}
-.policy{display:grid;gap:6px;font-size:13px}
-.policy label{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--line);border-radius:8px}
-@media (prefers-reduced-motion:no-preference){.screen>*{animation:in .35s ease both}.screen>*:nth-child(2){animation-delay:.08s}.screen>*:nth-child(3){animation-delay:.16s}@keyframes in{from{opacity:.0;transform:translateY(6px)}to{opacity:1;transform:none}}}
+.kpi .n{font-family:var(--m);font-size:24px;font-weight:500;letter-spacing:-.01em}
+.kpi .s{font-size:12px}
+.up{color:var(--grn)}.dn{color:var(--red)}
+.two{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:12px;margin-top:12px}
+@media (max-width:1000px){.two{grid-template-columns:1fr}}
+.box{border:1px solid var(--line2);border-radius:var(--r);padding:14px;min-width:0}
+.box h3{margin:0 0 10px;font-size:13.5px;font-weight:600}
+.box .note{font-size:12px;color:var(--mut)}
+svg text{font-family:var(--m)}
+.chart path.l{fill:none;stroke:var(--ink);stroke-width:2;stroke-dasharray:var(--len);stroke-dashoffset:var(--len);animation:draw 1.4s .2s var(--ease) forwards}
+.chart path.h{fill:none;stroke:#aab5d0;stroke-width:1.5;stroke-dasharray:4 4}
+@keyframes draw{to{stroke-dashoffset:0}}
+.fix{display:grid;gap:10px}
+.fix .it{display:grid;gap:4px;padding-bottom:10px;border-bottom:1px solid var(--line2)}
+.fix .it:last-child{border-bottom:0;padding-bottom:0}
+.fix .it b{font-size:13.5px}
+.fix .it span{font-size:12.5px;color:var(--mut)}
+.bars{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;align-items:end;height:56px;margin-top:4px}
+.bars i{display:block;background:var(--line);border-radius:3px 3px 0 0;transform-origin:bottom;transform:scaleY(0);animation:grow .7s var(--ease) forwards}
+.bars i.hot{background:var(--red)}
+@keyframes grow{to{transform:scaleY(1)}}
+.days{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;font-size:10.5px;color:var(--mut);text-align:center;font-family:var(--m)}
+
+.chip{display:inline-block;font-size:11px;font-weight:600;border-radius:999px;padding:2px 8px;white-space:nowrap}
+.hi{background:var(--redS);color:var(--red)}.md{background:var(--ambS);color:var(--amb)}.lo{background:var(--grnS);color:var(--grn)}.ps{background:var(--bluS);color:var(--blu)}.nt{background:var(--bg);color:var(--mut);box-shadow:inset 0 0 0 1px var(--line)}
+
+/* review inbox */
+.inbox{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:14px}
+@media (max-width:1000px){.inbox{grid-template-columns:1fr}}
+.list{border:1px solid var(--line2);border-radius:var(--r);overflow:hidden}
+.list button{all:unset;box-sizing:border-box;cursor:pointer;width:100%;display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;padding:11px 12px;border-bottom:1px solid var(--line2);transition:background .15s}
+.list button:last-child{border-bottom:0}
+.list button:hover{background:#fafbfd}
+.list button[aria-selected="true"]{background:var(--bluS)}
+.list button:focus-visible{outline:2px solid var(--or);outline-offset:-2px}
+.list .nm{font-weight:600;font-size:13.5px}
+.list .ag{font-family:var(--m);font-size:11.5px;color:var(--mut)}
+.list .sn{grid-column:2/4;font-size:12.5px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stars{font-family:var(--m);font-size:12px;color:var(--amb);letter-spacing:1px}
+.card{border:1px solid var(--line2);border-radius:var(--r);padding:16px;display:grid;gap:14px}
+.card .q{font-size:14px}
+.sec{display:grid;gap:8px}
+.sec .cap{font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--mut)}
+.ladder{display:grid;gap:6px}
+.rung{display:grid;grid-template-columns:22px 1fr;gap:8px;font-size:13px;opacity:0;transform:translateX(-6px);animation:slide .4s var(--ease) forwards}
+@keyframes slide{to{opacity:1;transform:none}}
+.rung .dt{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;font-size:10px;font-weight:700;color:var(--mut);margin-top:1px}
+.rung.ok .dt{background:var(--ink);border-color:var(--ink);color:#fff}
+.rung.wait .dt{border-color:var(--or);color:var(--or)}
+.conf{height:6px;border-radius:3px;background:var(--line2);overflow:hidden;margin-top:4px;max-width:220px}
+.conf i{display:block;height:100%;background:var(--ink);width:0;transition:width 1s var(--ease)}
+.brief{background:var(--bg);border-radius:var(--r);padding:12px 14px;font-size:13px;display:grid;gap:6px}
+.brief dl{display:grid;grid-template-columns:90px 1fr;gap:3px 10px;margin:0}
+.brief dt{color:var(--mut)}.brief dd{margin:0}
+.reply{font-family:var(--m);font-size:12.5px;border:1px dashed var(--line);border-radius:var(--r);padding:10px 12px}
+.acts{display:flex;flex-wrap:wrap;gap:8px}
+.toast{font-size:12.5px;color:var(--grn);min-height:18px}
+
+/* settings */
+.set{display:grid;gap:12px;max-width:760px}
+.row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:12px 14px;border:1px solid var(--line2);border-radius:var(--r)}
+.row b{font-size:13.5px;font-weight:600;display:block}
+.row span{font-size:12.5px;color:var(--mut)}
+.sw{all:unset;cursor:pointer;width:38px;height:22px;border-radius:11px;background:var(--line);position:relative;transition:background .25s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .25s var(--ease);box-shadow:0 1px 2px rgba(16,40,110,.25)}
+.sw[aria-checked="true"]{background:var(--ink)}
+.sw[aria-checked="true"]::after{transform:translateX(16px)}
+.sw[disabled]{opacity:.6;cursor:not-allowed}
+.sw:focus-visible{outline:2px solid var(--or);outline-offset:2px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.seg button{all:unset;cursor:pointer;padding:5px 10px;font-size:12.5px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.gate{display:grid;gap:6px}
+.gate .track{height:8px;border-radius:4px;background:var(--line2);position:relative;overflow:visible}
+.gate .track i{display:block;height:100%;border-radius:4px;background:var(--grn);width:0;transition:width 1.2s var(--ease)}
+.gate .track em{position:absolute;top:-4px;width:2px;height:16px;background:var(--ink)}
+.gate .lab{display:flex;justify-content:space-between;font-size:11.5px;color:var(--mut)}
+
+/* agency */
+.steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
+@media (max-width:900px){.steps{grid-template-columns:1fr 1fr}}
+.vt{all:unset;cursor:pointer;border:1px solid var(--line2);border-radius:var(--r);padding:12px;display:grid;gap:4px;transition:border-color .2s,background .2s}
+.vt b{font-size:13.5px}.vt span{font-size:12px;color:var(--mut)}
+.vt[aria-pressed="true"]{border-color:var(--ink);background:var(--bluS)}
+.vt:focus-visible{outline:2px solid var(--or)}
+.applied{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (max-width:900px){.applied{grid-template-columns:1fr}}
+.ap{border:1px solid var(--line2);border-radius:var(--r);padding:12px;display:grid;gap:6px;font-size:13px}
+.ap .cap{font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--mut)}
+.ap .v{opacity:0;animation:pop .35s var(--ease) forwards}
+.check{display:grid;gap:8px;margin-top:12px}
+.ck{display:grid;grid-template-columns:22px 1fr auto;gap:10px;align-items:center;font-size:13.5px;padding:9px 12px;border:1px solid var(--line2);border-radius:var(--r);opacity:0;animation:pop .4s var(--ease) forwards}
+.ck .dt{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff;background:var(--grn)}
+.ck .dt.p{background:var(--amb)}
+.tbl{overflow-x:auto;border:1px solid var(--line2);border-radius:var(--r)}
+table{border-collapse:collapse;width:100%;min-width:720px;font-size:13px}
+th,td{padding:9px 12px;border-bottom:1px solid var(--line2);text-align:left;white-space:nowrap}
+th{font-size:11.5px;font-weight:600;color:var(--mut);letter-spacing:.03em;text-transform:uppercase;background:#fbfcfe}
+td.n{font-family:var(--m);text-align:right}th.n{text-align:right}
+tr.flag td{background:#fffaf2}
+tbody tr{opacity:0;animation:pop .35s var(--ease) forwards}
+.mini{display:inline-block;width:60px;height:6px;border-radius:3px;background:var(--line2);vertical-align:middle;margin-right:6px;overflow:hidden}
+.mini i{display:block;height:100%;background:var(--ink)}
+.plat{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:1000px){.plat{grid-template-columns:1fr}}
+.auto{display:grid;gap:10px}
+.auto .r{display:grid;grid-template-columns:150px 1fr 70px;gap:10px;align-items:center;font-size:13px}
+.auto .bar{height:10px;border-radius:5px;background:var(--line2);overflow:hidden}
+.auto .bar i{display:block;height:100%;background:var(--ink);width:0;transition:width 1.1s var(--ease)}
+
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-delay:0ms!important;transition-duration:.01ms!important}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header>
+  <div class="top">
     <div>
-      <h1>One bad visit, start to finish</h1>
-      <div class="sub">How the 2027 reputation loop works, one bet at a time. Illustrative: all names and numbers are made up. <a href="../">Back to the strategy</a></div>
+      <h1>The reputation loop, from three seats</h1>
+      <div class="sub">Prototype for the 2027 strategy. Names and numbers are illustrative. <a href="../">Read the strategy</a></div>
     </div>
-  </header>
-  <nav class="rail" id="rail" aria-label="Steps"></nav>
-  <div class="stage">
-    <section class="story" aria-live="polite">
-      <div class="step" id="stepn"></div>
-      <h2 id="title"></h2>
-      <span class="bet" id="bet"></span>
-      <div id="story" style="display:grid;gap:10px"></div>
-      <div class="knows" id="knows"></div>
-      <div class="metric"><span class="k">Moves</span><span class="v" id="metric"></span></div>
-      <div class="nav"><button class="btn" id="prev">← Back</button><button class="btn p" id="next">Next →</button></div>
-    </section>
-    <section class="screen" id="screen" aria-label="Product screen"></section>
+    <div class="views" role="tablist" id="views">
+      <span class="pill" id="pill"></span>
+      <button role="tab" data-v="patient" aria-selected="true">The patient<small>Priya, after a bad visit</small></button>
+      <button role="tab" data-v="clinic" aria-selected="false">The clinic owner<small>Smile Studio's portal</small></button>
+      <button role="tab" data-v="agency" aria-selected="false">The agency and HighLevel<small>Onboarding and fleet</small></button>
+    </div>
   </div>
+
+  <div class="why" id="why"><span class="tag" id="whyTag"></span><span id="whyText"></span><span class="metric" id="whyMetric"></span></div>
+
+  <!-- ===================== PATIENT ===================== -->
+  <section class="view on" id="v-patient" aria-label="Patient view">
+    <div class="pv">
+      <div>
+        <ol class="scenes" id="scenes"></ol>
+        <div class="ctrl"><button class="btn" id="sPrev">Back</button><button class="btn p" id="sNext">Next</button><button class="btn" id="sPlay">Play all</button></div>
+      </div>
+      <div class="phone"><div class="scr"><div class="notch"></div><div class="status"><span id="clock">12:47</span><span>5G</span></div><div class="app" id="app"></div></div></div>
+      <div class="side behind" id="behind"></div>
+    </div>
+  </section>
+
+  <!-- ===================== CLINIC ===================== -->
+  <section class="view" id="v-clinic" aria-label="Clinic owner portal">
+    <div class="appwin">
+      <div class="side" role="tablist" id="cside">
+        <div class="acct"><span class="av c">S</span><span><b>Smile Studio Dental</b><span>Austin · 1 location</span></span></div>
+        <button role="tab" data-p="c-over" aria-selected="true">Overview</button>
+        <button role="tab" data-p="c-rev" aria-selected="false">Reviews <span class="count">3</span></button>
+        <button role="tab" data-p="c-set" aria-selected="false">Asks and replies</button>
+      </div>
+      <div class="main">
+        <div class="pane on" id="c-over">
+          <div class="ph"><h2>October at Smile Studio</h2><span>Compared with the same clinics on batch asks (holdout)</span></div>
+          <div class="kpis">
+            <div class="kpi"><span class="l">New Google reviews</span><span class="n" data-count="41">0</span><span class="s up">+28% vs holdout</span></div>
+            <div class="kpi"><span class="l">Rating, last 90 days</span><span class="n" data-count="4.7" data-dec="1">0</span><span class="s up">from 4.4 in July</span></div>
+            <div class="kpi"><span class="l">Time to reach an unhappy patient</span><span class="n"><span data-count="3.5" data-dec="1">0</span>h</span><span class="s up">was 3 days</span></div>
+            <div class="kpi"><span class="l">Bookings from recovered patients</span><span class="n">$<span data-count="2340">0</span></span><span class="s">9 patients rebooked</span></div>
+          </div>
+          <div class="two">
+            <div class="box chart"><h3>Reviews per week</h3>
+              <svg viewBox="0 0 520 170" width="100%" role="img" aria-label="Reviews per week rose from about 7.4 to 9.8 after event-triggered asks started, while the holdout stayed near 7.5">
+                <g stroke="#e9edf5"><line x1="36" y1="20" x2="510" y2="20"/><line x1="36" y1="65" x2="510" y2="65"/><line x1="36" y1="110" x2="510" y2="110"/><line x1="36" y1="150" x2="510" y2="150"/></g>
+                <g font-size="10" fill="#66749a"><text x="28" y="24" text-anchor="end">12</text><text x="28" y="69" text-anchor="end">8</text><text x="28" y="114" text-anchor="end">4</text><text x="28" y="154" text-anchor="end">0</text>
+                <text x="36" y="166">Aug</text><text x="230" y="166">Sep</text><text x="430" y="166">Oct</text></g>
+                <line x1="230" y1="14" x2="230" y2="150" stroke="#d9822b" stroke-dasharray="3 3"/><text x="236" y="26" font-size="10" fill="#d9822b">Event asks on</text>
+                <path class="h" d="M36 71 L76 69 L116 73 L156 70 L196 72 L236 69 L276 71 L316 68 L356 70 L396 69 L436 68 L476 70 L510 68"/>
+                <path class="l" style="--len:700" d="M36 72 L76 68 L116 74 L156 69 L196 71 L236 68 L276 60 L316 55 L356 51 L396 48 L436 46 L476 45 L510 44"/>
+                <circle cx="510" cy="44" r="4" fill="#10286e"/><text x="500" y="36" font-size="10" fill="#10286e" text-anchor="end">9.8</text>
+                <text x="500" y="84" font-size="10" fill="#8a95b3" text-anchor="end">holdout 7.6</text>
+              </svg>
+            </div>
+            <div class="box"><h3>What to fix this week</h3>
+              <div class="fix">
+                <div class="it"><b>Wait times on Tuesdays</b><span>5 of 6 wait-time complaints since 12 Oct came on Tuesdays, when the rota has one hygienist.</span>
+                  <div class="bars" id="bars"></div><div class="days"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div></div>
+                <div class="it"><b>Patients name Dr. Okafor</b><span>11 reviews mention how clearly he explains treatment. Worth putting on the implants page.</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pane" id="c-rev">
+          <div class="ph"><h2>Reviews that need you</h2><span>38 others were handled under your policy this month</span></div>
+          <div class="inbox">
+            <div class="list" role="listbox" id="rlist"></div>
+            <div class="card" id="rcard"></div>
+          </div>
+        </div>
+
+        <div class="pane" id="c-set">
+          <div class="ph"><h2>Asks and replies</h2><span>Set once. Changes apply to the next visit.</span></div>
+          <div class="set">
+            <div class="row"><span><b>Ask after every completed appointment</b><span>Fires when the appointment is marked done in your calendar</span></span><button class="sw" role="switch" aria-checked="true" aria-label="Ask after every completed appointment"></button></div>
+            <div class="row"><span><b>Send the ask after</b><span>Patients answer most within 2 hours of checkout</span></span><div class="seg" data-seg><button aria-pressed="false">30 min</button><button aria-pressed="true">2 hours</button><button aria-pressed="false">Next morning</button></div></div>
+            <div class="row"><span><b>Quiet hours</b><span>No asks or calls between 8 pm and 9 am, patient's time zone</span></span><span class="mono">20:00 to 09:00</span></div>
+            <div class="row"><span><b>Hold the ask when</b><span>A patient has an open complaint or refund, no consent, or was asked in the last 90 days</span></span><span class="chip nt">Always on</span></div>
+            <div class="row"><span><b>Skip these services</b><span>Root canal, extraction</span></span><button class="btn">Edit</button></div>
+            <div class="row"><span><b>Post 4 and 5-star replies without me</b><span id="gateText">You approved 94% of drafts unchanged over 6 weeks. The bar is 90%.</span>
+              <div class="gate" style="margin-top:8px;max-width:420px"><div class="track"><i id="gateBar"></i><em style="left:90%"></em></div><div class="lab"><span>Approved unchanged</span><span>bar 90%</span></div></div></span>
+              <button class="sw" role="switch" aria-checked="false" id="gateSw" aria-label="Post 4 and 5-star replies without me"></button></div>
+            <div class="row"><span><b>Patient privacy mode</b><span>Public replies never confirm a visit or mention treatment. Required for healthcare.</span></span><button class="sw" role="switch" aria-checked="true" disabled aria-label="Patient privacy mode, locked on"></button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== AGENCY / HIGHLEVEL ===================== -->
+  <section class="view" id="v-agency" aria-label="Agency and HighLevel view">
+    <div class="appwin">
+      <div class="side" role="tablist" id="aside">
+        <div class="acct"><span class="av" style="background:var(--ink);color:#fff">B</span><span><b>Brightline Agency</b><span>80 client locations</span></span></div>
+        <button role="tab" data-p="a-onb" aria-selected="true">Onboard a client</button>
+        <button role="tab" data-p="a-fleet" aria-selected="false">All locations</button>
+        <button role="tab" data-p="a-queue" aria-selected="false">Exception queue <span class="count">6</span></button>
+        <button role="tab" data-p="a-plat" aria-selected="false">Platform guardrails</button>
+      </div>
+      <div class="main">
+        <div class="pane on" id="a-onb">
+          <div class="ph"><h2>Onboard a new client</h2><span>Pick the vertical. The snapshot sets sensible defaults you can change.</span></div>
+          <div class="steps" id="verts"></div>
+          <div class="applied" id="applied"></div>
+          <div class="check" id="checks"></div>
+        </div>
+
+        <div class="pane" id="a-fleet">
+          <div class="ph"><h2>All 80 locations</h2><span>Sorted by what needs attention first</span></div>
+          <div class="tbl"><table><thead><tr><th>Location</th><th>Vertical</th><th class="n">Reviews / mo</th><th>Match rate</th><th class="n">First contact</th><th>Status</th></tr></thead><tbody id="fleet"></tbody></table></div>
+          <p class="note" style="font-size:12.5px;color:var(--mut)">Asks pause on their own when a location's opt-out rate passes 1%. The account manager sees why and when they restart.</p>
+        </div>
+
+        <div class="pane" id="a-queue">
+          <div class="ph"><h2>Exception queue</h2><span>612 reviews this week across all clients · 606 handled under client policies</span></div>
+          <div class="list" id="aq"></div>
+        </div>
+
+        <div class="pane" id="a-plat">
+          <div class="ph"><h2>Platform guardrails</h2><span>HighLevel's view across every account. These stop the strategy doing harm.</span></div>
+          <div class="plat">
+            <div class="box"><h3>Gating check</h3><span class="note">Asked reviews should not rate far above organic ones. A wide gap means someone is filtering who gets asked.</span>
+              <div style="display:grid;gap:8px;margin-top:10px;font-size:13px">
+                <div style="display:grid;grid-template-columns:70px 1fr 40px;gap:8px;align-items:center"><span>Asked</span><div class="auto"><div class="bar"><i data-w="88"></i></div></div><span class="mono">4.4</span></div>
+                <div style="display:grid;grid-template-columns:70px 1fr 40px;gap:8px;align-items:center"><span>Organic</span><div class="auto"><div class="bar"><i data-w="84" style="background:#8fa6d6"></i></div></div><span class="mono">4.2</span></div>
+              </div><span class="chip lo" style="margin-top:10px">Gap 0.2 · within 0.3 limit</span></div>
+            <div class="box"><h3>Safety</h3>
+              <div style="display:grid;gap:8px;font-size:13px">
+                <div style="display:flex;justify-content:space-between"><span>Patient-data incidents</span><span class="mono">0</span></div>
+                <div style="display:flex;justify-content:space-between"><span>SMS opt-out rate</span><span class="mono">0.4%</span></div>
+                <div style="display:flex;justify-content:space-between"><span>Platform removals of asked reviews</span><span class="mono">0.6%</span></div>
+                <div style="display:flex;justify-content:space-between"><span>Make-goods, spend vs cap</span><span class="mono">62%</span></div>
+                <div style="display:flex;justify-content:space-between"><span>AI calls without consent</span><span class="mono">0</span></div>
+              </div></div>
+            <div class="box"><h3>Where AI acts alone</h3><span class="note">Share of locations that earned autonomy, by category</span>
+              <div class="auto" style="margin-top:10px">
+                <div class="r"><span>Asks</span><div class="bar"><i data-w="100"></i></div><span class="mono">100%</span></div>
+                <div class="r"><span>4 and 5-star replies</span><div class="bar"><i data-w="64"></i></div><span class="mono">64%</span></div>
+                <div class="r"><span>3-star replies</span><div class="bar"><i data-w="18"></i></div><span class="mono">18%</span></div>
+                <div class="r"><span>1 and 2-star replies</span><div class="bar"><i data-w="0"></i></div><span class="mono">never</span></div>
+              </div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
 </div>
 
 <script>
-const S=[
-{rail:"Visit ends",title:"The visit ends, and the ask goes out within hours",bet:"Table stakes · Event-triggered asks",
- story:["Today, asks go out as a monthly batch blast, so most happy patients are never asked.","In 2027 the ask fires off the event HighLevel already owns: the appointment is marked done. It goes by SMS within two hours, inside quiet hours, only with consent.","It also knows when <b>not</b> to ask. A patient with an open complaint is held back and routed to recovery first. Predicted sentiment never decides who gets asked; that would be review gating."],
- knows:["Appointment done · Dr. Mehta · cleaning","Paid $180 · no refund or dispute","SMS consent on file · not asked in 90 days","Open threads in Conversations"],
- metric:"Genuine reviews per location (holdout: event asks vs batch)",
- screen:`<div class="cap">Smile Studio Dental · Tuesday 3 Nov</div>
- <div class="row">
-  <div class="phone"><div class="top">Messages · 12:47</div>
-   <div class="sms">Hi Priya, thanks for coming in today. How was your visit with Dr. Mehta? A quick Google review helps other patients find us: g.page/smilestudio</div>
-   <div class="note" style="text-align:center">Sent 12:47, 2h after checkout</div></div>
-  <div class="panel"><div class="cap">Ask agent · today</div>
-   <div class="ev"><span class="d g"></span><span><b>Priya S.</b> · ask sent by SMS<br><span class="note">Completed 10:30 · paid · consent ✓</span></span></div>
-   <div class="ev"><span class="d g"></span><span><b>Arjun K.</b> · ask sent by email<br><span class="note">Replies on email, not SMS</span></span></div>
-   <div class="ev"><span class="d o"></span><span><b>Maria L.</b> · <b>held back</b><br><span class="note">Open billing complaint in Conversations → recovery first</span></span></div>
-   <div class="ev"><span class="d x"></span><span><b>Tom R.</b> · held back<br><span class="note">No SMS consent · email ask tomorrow 10:00</span></span></div>
-  </div></div>`},
-{rail:"1★ lands",title:"Priya leaves a 1-star review. Triage decides how much it matters",bet:"Recovery · Triage on two axes",
- story:["Not every review needs a person. Triage scores two separate things: sentiment, and stakes.","This one is High: it describes a health effect and names a staff member. Health, safety and legal words force High regardless of the model, because a missed High is the expensive mistake.","Low-stakes reviews get a grounded public reply and nobody's time."],
- knows:["Review text and rating","Business vertical: healthcare (patient-data mode on)","Rubric: health, safety, legal, staff named, reach, customer value"],
- metric:"Recall on High-stakes reviews (labelled eval set)",
- screen:`<div class="cap">Reviews · new · Google</div>
- <div class="review"><div><span class="stars">★☆☆☆☆</span> <span class="note">· "Priya S." · 2 hours ago</span></div>
- <p style="margin:6px 0 0">Waited 50 minutes, then the hygienist was rough and dismissive. My gums bled for two days. Won't be back.</p></div>
- <div class="cap" style="margin-top:6px">Triage: sentiment × stakes</div>
- <div class="grid"><div class="h"></div><div class="h">Low</div><div class="h">Medium</div><div class="h">High</div>
-  <div class="h">Negative</div><div></div><div></div><div class="on">this review</div>
-  <div class="h">Positive</div><div></div><div></div><div></div></div>
- <div class="row"><span class="chip hi">Health content</span><span class="chip hi">Staff described</span><span class="chip nt">Healthcare: no patient details in public</span></div>`},
-{rail:"Who wrote it?",title:"Who wrote it? The review is matched to a real visit",bet:"Bet 1 · Know the reviewer",
- story:["Google display names are often nicknames, so name matching alone is weak. The match runs as a ladder.","<b>1. CRM match:</b> name, review time against visit windows, the staff or service mentioned. Here: 91% Priya S., Tuesday's cleaning.","<b>2. No match?</b> The public reply carries a way in: <i>\"Text CARE to the number on this profile\"</i>. No links, the listing's own number. Texting in captures the contact and call consent.","<b>3. Still silent after 14 days,</b> with no visit or payment on record: a fake-review evidence pack for the platform. A signal, never proof."],
- knows:["Calendar: visits in the last 7 days","Payments and staff on each visit","Reviewer display name and posting time"],
- metric:"Match rate on negative reviews (day-90 kill line: 40%)",
- screen:`<div class="row">
- <div class="panel"><div class="cap">Matched review</div>
-  <ul class="lad"><li class="ok"><span class="dot">✓</span><span><b>CRM match · 91%</b><br>Priya S. · cleaning · Dr. Mehta · Tue 3 Nov 10:30<br><span class="note">Waited 50 min (rota had one hygienist out)</span></span></li>
-  <li><span class="dot">2</span><span class="note">Text-in line not needed</span></li>
-  <li><span class="dot">3</span><span class="note">Platform DM not needed</span></li></ul></div>
- <div class="panel"><div class="cap">Unmatched review, same day</div>
-  <div class="mono">"J" · ★☆☆☆☆ · "Worst service ever."</div>
-  <ul class="lad"><li><span class="dot">1</span><span>No CRM match</span></li>
-  <li class="wait"><span class="dot">2</span><span><b>Reply posted with the way in</b><br><span class="mono">"We'd like to make this right. Text CARE to the number on this profile and we'll call you."</span></span></li>
-  <li><span class="dot">3</span><span class="note">Day 0 of 14 · then evidence pack if no visit or payment</span></li></ul></div></div>`},
-{rail:"Recover",title:"The dentist gets a brief on his phone and calls Priya back",bet:"Bet 2 · Private recovery",
- story:["The real conversation moves off the public page. For High stakes a <b>person</b> calls; the AI prepares the brief and books the slot.","For Medium stakes, an <b>AI voice call or SMS</b> goes out, only with prior consent (the FCC treats AI voices as \"artificial\" under the TCPA). It hands over to a person on anger or request.","A make-good is offered privately on a verified visit, capped and never tied to editing the review."],
- knows:["The matched visit, spend and history","What went wrong that day (rota)","The business's reply policy and banned phrases","Consent per channel"],
- metric:"Time to first contact on 1–3★ (target under 4h)",
- screen:`<div class="row">
- <div class="phone"><div class="top">Dr. Mehta's phone · 14:52</div>
-  <div class="notif"><span class="t">⚠ High-stakes review · Priya S.</span><span>Cleaning Tue 10:30 · patient since 2021 · 7 visits</span></div>
-  <div class="notif"><span class="t">Brief</span><span>• Apologise for the 50-min wait; one hygienist was out<br>• Offer a free follow-up with a different hygienist<br>• Don't discuss treatment in any public reply</span></div>
-  <div class="sms me" style="text-align:center">Call Priya now</div>
-  <div class="sms" style="text-align:center">Book for 17:30</div></div>
- <div class="panel"><div class="cap">Medium case · AI voice, with consent</div>
-  <div class="mono" style="display:grid;gap:6px">
-   <span><b>AI:</b> Hi Dana, this is Glow Med Spa's assistant. I saw your note about Saturday's facial. Is now OK to talk?</span>
-   <span><b>Dana:</b> Yes. I was charged for a peel I didn't ask for.</span>
-   <span><b>AI:</b> I can see that on your invoice. I've refunded the $60 difference. Would you like a call from the manager too?</span>
-   <span><b>Dana:</b> No, that's fine. Thanks.</span></div>
-  <span class="note">Hands to a person on anger or request · refund within the make-good cap</span></div></div>`},
-{rail:"Loop closes",title:"The loop closes: a short public line, and Priya books again",bet:"Recovery → retention",
- story:["After the call, the public reply is one line: no recap, no rebuttal, and in healthcare nothing that confirms she's a patient (HHS has fined practices for exactly that).","It's posted only if Priya agrees on the call. She may be invited to update her review, but never as a condition of the fix.","The outcome we count is not a changed star. It's that Priya books again."],
- knows:["Call outcome: resolved, OK to note publicly","Next appointment booked"],
- metric:"Recovered customers who rebook (vs a holdout not contacted)",
- screen:`<div class="panel"><div class="cap">Public reply · posted 18:05</div>
-  <div class="mono">Thanks for talking with us, Priya. Glad we could sort this out.</div>
-  <span class="note">Human approved (High) · no details · patient-data filter passed</span></div>
- <div class="panel"><div class="cap">Priya S. · CRM timeline</div>
-  <div class="ev"><span class="d"></span><span>Tue 10:30 · cleaning · Dr. Mehta</span></div>
-  <div class="ev"><span class="d"></span><span>Tue 12:47 · review ask sent (SMS)</span></div>
-  <div class="ev"><span class="d o"></span><span>Tue 14:40 · 1★ review · matched 91%</span></div>
-  <div class="ev"><span class="d o"></span><span>Tue 17:30 · call with Dr. Mehta · resolved</span></div>
-  <div class="ev"><span class="d g"></span><span><b>Wed 09:12 · booked follow-up · Thu 12 Nov</b></span></div></div>`},
-{rail:"Agency scale",title:"Now do that for 80 clients with one account manager",bet:"Bet 3 · Agency autopilot",
- story:["Today every reply waits on client approval, one at a time. That's the agency headcount wall.","In 2027 each client approves a <b>policy once</b>: what AI may post, what needs them. Everything inside the policy runs on its own.","The account manager works <b>one queue</b> across all clients, holding only the exceptions. AI earns autonomy per category as approval rates hold, and loses it if edits rise."],
- knows:["Each client's approved policy","Approval and edit rates per category","Triage tier and match for every review"],
- metric:"Locations per account manager",
- screen:`<div class="row">
- <div class="panel" style="max-width:300px"><div class="cap">Smile Studio Dental · policy (approved once)</div>
-  <div class="policy">
-   <label>4–5★ replies post on their own <span class="chip lo">AI</span></label>
-   <label>3★ replies <span class="chip md">Draft → me</span></label>
-   <label>1–2★ replies <span class="chip md">Draft → me</span></label>
-   <label>Health, legal, staff named <span class="chip hi">Always a person</span></label>
-   <label>Asks after every completed visit <span class="chip lo">AI</span></label></div></div>
- <div class="panel"><div class="cap">Brightline Agency · this week</div>
-  <div class="row" style="gap:18px"><div><div class="mono" style="font-size:20px">612</div><span class="note">reviews</span></div><div><div class="mono" style="font-size:20px">606</div><span class="note">handled under policy</span></div><div><div class="mono" style="font-size:20px;color:var(--or)">6</div><span class="note">need a person</span></div></div>
-  <div class="q">
-   <div><span class="chip hi">High</span><span>Smile Studio · Austin · 1★ health</span><span class="note">brief ready</span></div>
-   <div><span class="chip hi">High</span><span>Prime Roofing · 1★ safety</span><span class="note">owner to call</span></div>
-   <div><span class="chip md">Med</span><span>Glow Med Spa · confirm match</span><span class="note">2 Danas</span></div>
-   <div><span class="chip md">Med</span><span>Bella Cucina · unmatched</span><span class="note">day 0/14</span></div>
-   <div><span class="chip ps">High · 5★</span><span>Smile Studio · detailed 5★</span><span class="note">referral invite</span></div>
-   <div><span class="chip lo">Low</span><span>QuickFix · 3★ (client asked to see)</span><span class="note">draft ready</span></div>
-  </div></div></div>`},
-{rail:"Outcome",title:"What it adds up to: locations that stay",bet:"The goal",
- story:["Each bet moves one driver: more genuine reviews, bad visits recovered, more locations per account manager.","Together they move the outcome the charter is measured on: <b>location churn 20% lower than a matched cohort by April 2028</b>.","The proof comes early. At day 90 the holdout must show reviews 25% above batch asks, and matching must reach 40% of negative reviews, or the plan narrows."],
- knows:["Holdouts on asks and on recovery","Billing data for churn, cohorted by vertical, size and tenure"],
- metric:"Location churn vs matched cohort (the goal)",
- screen:`<div class="cap">Brightline Agency · quarter view (illustrative)</div>
- <div class="kpis">
-  <div class="kpi"><span class="l">Genuine reviews / location / month</span><div class="cmp"><span>Holdout</span><div class="bar"><i style="width:56%;background:var(--line)"></i></div><span class="mono">7.9</span></div><div class="cmp"><span>Event asks</span><div class="bar"><i style="width:72%"></i></div><span class="mono">10.1</span></div></div>
-  <div class="kpi"><span class="l">Median time to first contact, 1–3★</span><div class="cmp"><span>Before</span><div class="bar"><i style="width:100%;background:var(--line)"></i></div><span class="mono">3.2d</span></div><div class="cmp"><span>Now</span><div class="bar"><i style="width:5%"></i></div><span class="mono">3.5h</span></div></div>
-  <div class="kpi"><span class="l">Locations per account manager</span><div class="cmp"><span>Before</span><div class="bar"><i style="width:50%;background:var(--line)"></i></div><span class="mono">20</span></div><div class="cmp"><span>Now</span><div class="bar"><i style="width:80%"></i></div><span class="mono">32</span></div></div>
-  <div class="kpi"><span class="l">Monthly location churn</span><div class="cmp"><span>Cohort</span><div class="bar"><i style="width:75%;background:var(--line)"></i></div><span class="mono">3.0%</span></div><div class="cmp"><span>Using it</span><div class="bar"><i style="width:60%;background:var(--or)"></i></div><span class="mono">2.4%</span></div></div>
- </div>
- <div class="panel"><div class="cap">Guardrails (all within limits)</div>
-  <div class="row"><span class="chip lo">Platform removals ✓</span><span class="chip lo">SMS opt-outs 0.4% ✓</span><span class="chip lo">Asked vs organic star mix ✓</span><span class="chip lo">Patient-data incidents 0 ✓</span><span class="chip lo">Make-good abuse ✓</span></div></div>
- <span class="note">Numbers are illustrative targets, not HighLevel data.</span>`}
-];
-const rail=document.getElementById('rail'),$=id=>document.getElementById(id);
-let cur=0;
-function render(){
-  const s=S[cur];
-  rail.innerHTML=S.map((x,i)=>`<button class="${i<cur?'done':i===cur?'cur':''}" data-i="${i}" aria-current="${i===cur?'step':'false'}"><i></i><span>${i+1}. ${x.rail}</span></button>`).join('');
-  $('stepn').textContent=`Step ${cur+1} of ${S.length}`;
-  $('title').textContent=s.title; $('bet').textContent=s.bet;
-  $('story').innerHTML=s.story.map(p=>`<p>${p}</p>`).join('');
-  $('knows').innerHTML=`<b>What the system knows going in</b><ul>${s.knows.map(k=>`<li>${k}</li>`).join('')}</ul>`;
-  $('metric').textContent=s.metric;
-  $('screen').innerHTML=s.screen;
-  $('prev').disabled=cur===0; $('next').textContent=cur===S.length-1?'Start again ↺':'Next →';
-  try{history.replaceState(null,'','#step-'+(cur+1))}catch(e){}
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- top-level views ---------- */
+const WHY={
+ patient:{tag:"What Priya sees",text:"Every message comes from Smile Studio, not from HighLevel. She never sees the machinery: the timing, the match, the brief.",metric:"Moves: <b>reviews per location</b> and <b>patients who rebook</b>"},
+ clinic:{tag:"What the owner sees",text:"One screen for what reputation is worth, the few reviews that need him, and settings he touches once.",metric:"Moves: <b>time to first contact</b> and <b>location retention</b>"},
+ agency:{tag:"What the agency and HighLevel see",text:"Onboarding by vertical in minutes, one queue across 80 clients, and guardrails that catch gating and privacy slips.",metric:"Moves: <b>locations per account manager</b>"}
+};
+function pill(){const b=$('#views [aria-selected="true"]'),p=$('#pill');p.style.left=b.offsetLeft+'px';p.style.width=b.offsetWidth+'px';}
+function setView(v,push=true){
+  const go=()=>{
+    $$('#views button').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===v));
+    $$('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+v));
+    const w=WHY[v]; $('#whyTag').textContent=w.tag; $('#whyText').textContent=w.text; $('#whyMetric').innerHTML=w.metric;
+    pill(); if(push){try{history.replaceState(null,'','#'+v)}catch(e){}}
+    if(v==='clinic') enterClinic(); if(v==='agency') enterAgency();
+  };
+  if(document.startViewTransition&&!reduce){const t=document.startViewTransition(go);t.ready.catch(()=>{});t.finished.catch(()=>{});t.updateCallbackDone.catch(()=>{})}else go();
 }
-function go(i){cur=(i+S.length)%S.length;render();}
-rail.addEventListener('click',e=>{const b=e.target.closest('button');if(b)go(+b.dataset.i)});
-$('prev').onclick=()=>go(cur-1); $('next').onclick=()=>go(cur===S.length-1?0:cur+1);
-document.addEventListener('keydown',e=>{if(e.key==='ArrowRight')$('next').click();if(e.key==='ArrowLeft'&&cur>0)go(cur-1)});
-const m=location.hash.match(/step-(\d)/); if(m)cur=Math.min(S.length-1,Math.max(0,+m[1]-1));
-render();
+$('#views').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setView(b.dataset.v)});
+addEventListener('resize',pill);
+
+/* ---------- patient scenes ---------- */
+const SC=[
+ {t:"12:47",h:"The ask arrives",d:"Two hours after checkout, by SMS",clock:"12:47",bet:"Event-triggered ask",
+  behind:["Appointment marked done at 10:30 · paid $180","SMS consent on file · not asked in 90 days","Sent inside quiet hours, two hours after checkout","Every rating goes to Google. Nobody is filtered out"],
+  render:()=>chat([["ts","Today 12:47"],["in",`Hi Priya, thanks for coming in this morning. If you have a minute, a Google review helps other patients find us.<span class="lnk"><b>Review Smile Studio on Google</b>g.page/smilestudio-austin</span>`],["ts","Smile Studio Dental · reply STOP to opt out"]])},
+ {t:"14:38",h:"She leaves one star",d:"On Google, in her own words",clock:"14:38",bet:"Triage: Negative × High",
+  behind:["Review synced within minutes","Health content and a staff member described: forced to High","Healthcare: the public reply may not confirm she is a patient"],
+  render:()=>review()},
+ {t:"14:40",h:"We know who she is",d:"Matched to Tuesday's 10:30 cleaning",clock:"14:40",bet:"Bet 1 · Know the reviewer",
+  behind:["CRM match, 91%: name, review time, the hygienist she describes","Visit: cleaning with Dr. Mehta, waited 50 minutes","Patient since 2021, 7 visits","No match? The public reply would carry 'Text CARE to the number on this profile'"],
+  render:()=>chat([["ts","Today 12:47"],["in","Hi Priya, thanks for coming in this morning…"],["ts","Today 14:41"],["in","Hi Priya, it's Dr. Mehta from Smile Studio. I saw your review and I'm sorry about today. Could I call you this afternoon? It won't take long."],["typing"],["out","ok. after 5 works"]],true)},
+ {t:"17:30",h:"The dentist calls",d:"A person, with a brief the AI prepared",clock:"17:30",bet:"Bet 2 · Private recovery",
+  behind:["High stakes, so a person calls. AI voice is for Medium, and only with consent","Brief: apologise for the wait; one hygienist was out on Tuesday's rota","Offer: free follow-up with a different hygienist (make-good, capped)","Never tied to editing the review"],
+  render:()=>callScreen()},
+ {t:"17:42",h:"She books again",d:"Confirmation in the same thread",clock:"17:42",bet:"The loop closes",
+  behind:["Follow-up booked for Thu 12 Nov, no charge","The fix was not conditional on the review","This rebooking is the outcome we count"],
+  render:()=>chat([["ts","Today 17:42"],["in","Thanks for talking with me, Priya. You're booked for a free follow-up with Jen on Thu 12 Nov at 10:00. Reply C to change."],["out","Thank you, that was kind"],["in","See you Thursday."]])},
+ {t:"18:05",h:"A one-line public reply",d:"No recap, no patient details",clock:"18:05",bet:"Closing line",
+  behind:["Posted only because she agreed on the call","Human approved, privacy filter passed","She may update her review. Nobody asks her to"],
+  render:()=>review(true)}
+];
+let sc=0, timer=null;
+function chat(items,typingThen){
+  let d=0; const parts=items.map(([k,txt])=>{
+    if(k==='ts'){d+=.15;return `<div class="ts" style="animation-delay:${d}s">${txt}</div>`}
+    if(k==='typing'){d+=.35;return `<div class="typing" style="animation-delay:${d}s"><i></i><i></i><i></i></div>`}
+    d+=.45; return `<div class="bub ${k==='out'?'me':''}" style="animation-delay:${d}s">${txt}</div>`;});
+  return `<div class="apphd"><span class="av c">S</span><span><b>Smile Studio Dental</b><span>Text message</span></span></div><div class="thread">${parts.join('')}</div>`;
+}
+function review(withReply){
+  return `<div class="apphd"><span class="av" style="background:#e4edf8;color:#1a56c9">G</span><span><b>Smile Studio Dental</b><span>Google reviews</span></span></div>
+  <div class="gpage">${withReply?'':`<h3>Rate your experience</h3><div class="gstars" id="gst"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div>`}
+  <div class="${withReply?'rv':'field'}" id="gtxt">${withReply?`<div class="who"><span class="av" style="width:26px;height:26px;background:#f9e6e1;color:#b4442e;font-size:11px">P</span><b>Priya S.</b><span class="stars">★☆☆☆☆</span><span style="color:var(--mut)">3 hours ago</span></div><div>Waited 50 minutes, then the hygienist was rough and dismissive. My gums bled for two days. Won't be back.</div><div class="owner"><b>Response from the owner</b><br>Thank you for speaking with us. We're glad we could talk this through.</div>`:''}</div>
+  ${withReply?'':'<span class="post" id="gpost" style="opacity:.4">Post</span>'}</div>`;
+}
+function typeReview(){
+  const st=$$('#gst span'); if(!st.length) return;
+  setTimeout(()=>st[0].classList.add('on'),reduce?0:350);
+  const txt="Waited 50 minutes, then the hygienist was rough and dismissive. My gums bled for two days. Won't be back.";
+  const el=$('#gtxt'); let i=0; el.classList.add('caret');
+  if(reduce){el.textContent=txt;el.classList.remove('caret');$('#gpost').style.opacity=1;return}
+  const tick=()=>{ if(!document.body.contains(el)) return; el.textContent=txt.slice(0,++i); if(i<txt.length) setTimeout(tick,22); else {el.classList.remove('caret');$('#gpost').style.opacity=1;} };
+  setTimeout(tick,700);
+}
+function callScreen(){
+  const L=[["Dr. Mehta","Priya, I read your review. I'm sorry. We were a hygienist short on Tuesday and you paid for it."],["Priya","It was the bleeding that worried me."],["Dr. Mehta","That shouldn't happen after a cleaning. I'd like Jen to see you this week, no charge."],["Dr. Mehta","Is it OK if we post a short note that we spoke? Nothing about your visit."],["Priya","Yes, that's fine."]];
+  return `<div class="call"><span class="av c ring">M</span><b style="font-size:18px">Dr. Arun Mehta</b><span style="font-size:12.5px;opacity:.8">Smile Studio Dental · 04:12</span>
+  <div class="lines">${L.map((l,i)=>`<div class="ln" style="animation-delay:${.5+i*.7}s"><b>${l[0]}:</b> ${l[1]}</div>`).join('')}</div>
+  <div class="end"><span style="background:rgba(255,255,255,.12)">mute</span><span style="background:#c0392b">end</span></div></div>`;
+}
+function renderScene(){
+  const s=SC[sc];
+  $('#scenes').innerHTML=SC.map((x,i)=>`<li><button aria-current="${i===sc}" data-i="${i}"><span class="t">${x.t}</span><span><span class="h">${x.h}</span><br><span class="d">${x.d}</span></span></button></li>`).join('');
+  $('#clock').textContent=s.clock; $('#app').innerHTML=s.render();
+  $('#behind').innerHTML=`<span class="cap">Behind the scenes</span><span class="chip ps" style="justify-self:start">${s.bet}</span><ul>${s.behind.map(b=>`<li>${b}</li>`).join('')}</ul>`;
+  if(sc===1) typeReview();
+  $('#sPrev').disabled=sc===0; $('#sNext').textContent=sc===SC.length-1?'Start again':'Next';
+}
+$('#scenes').addEventListener('click',e=>{const b=e.target.closest('button');if(b){stop();sc=+b.dataset.i;renderScene()}});
+$('#sPrev').onclick=()=>{stop();if(sc>0){sc--;renderScene()}};
+$('#sNext').onclick=()=>{stop();sc=(sc+1)%SC.length;renderScene()};
+function stop(){clearInterval(timer);timer=null;$('#sPlay').textContent='Play all'}
+$('#sPlay').onclick=()=>{ if(timer){stop();return} $('#sPlay').textContent='Pause'; sc=0;renderScene(); timer=setInterval(()=>{ if(sc>=SC.length-1){stop();return} sc++;renderScene(); },5200); };
+
+/* ---------- clinic ---------- */
+function tabs(sideSel,onEnter){
+  $(sideSel).addEventListener('click',e=>{const b=e.target.closest('button[data-p]');if(!b)return;
+    $$(sideSel+' button[data-p]').forEach(x=>x.setAttribute('aria-selected',x===b));
+    const host=b.closest('.appwin'); host.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id===b.dataset.p)); onEnter&&onEnter(b.dataset.p);});
+}
+function countUp(root){
+  root.querySelectorAll('[data-count]').forEach(el=>{
+    const end=+el.dataset.count, dec=+(el.dataset.dec||0); if(reduce){el.textContent=end.toLocaleString(undefined,{minimumFractionDigits:dec,maximumFractionDigits:dec});return}
+    const t0=performance.now(),dur=900; const f=t=>{const k=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-k,3);el.textContent=(end*e).toLocaleString(undefined,{minimumFractionDigits:dec,maximumFractionDigits:dec});if(k<1)requestAnimationFrame(f)};requestAnimationFrame(f);
+  });
+}
+function restart(el){el.querySelectorAll('.l,.bars i').forEach(n=>{n.style.animation='none';n.offsetWidth;n.style.animation=''})}
+const B=[1,5,0,1,0,0,0];
+$('#bars').innerHTML=B.map((v,i)=>`<i class="${i===1?'hot':''}" style="height:${Math.max(6,v*10)}px;animation-delay:${.1+i*.06}s"></i>`).join('');
+const REV=[
+ {id:1,nm:"Priya S.",st:1,ag:"3h",tier:["hi","High"],sn:"Waited 50 minutes, then the hygienist was rough…",
+  match:[["ok","CRM match","Priya S. · cleaning · Dr. Mehta · Tue 10:30",91],["","Text-in line","Not needed"],["","Platform DM","Not needed"]],
+  brief:[["Visit","Cleaning, Tue 3 Nov 10:30, waited 50 min"],["History","Patient since 2021 · 7 visits · $180 today"],["Channel","You call (High)"],["Consent","Call consent on intake form"]],
+  say:["Apologise for the wait: one hygienist was out on Tuesday","Offer a free follow-up with Jen","Don't mention treatment in any public reply"],
+  reply:"Thank you for speaking with us. We're glad we could talk this through.",act:"Call Priya"},
+ {id:2,nm:"\"J\"",st:1,ag:"6h",tier:["md","Medium"],sn:"Worst service ever. Never coming back.",
+  match:[["","CRM match","No visit or payment matches this name"],["wait","Text-in line","Posted 6h ago: 'Text CARE to the number on this profile'"],["","Evidence pack","Day 0 of 14. Built only if nobody texts and no visit matches"]],
+  brief:[["Visit","Unknown"],["Channel","Waiting for them to text in"],["Consent","Captured when they text"]],
+  say:["Don't say 'you're not our patient' in public","Not texting in is one signal, never proof"],
+  reply:"We're sorry to hear this. We'd like to make it right. Text CARE to the number on this profile and we'll call you.",act:"Keep watching"},
+ {id:3,nm:"Robert L.",st:5,ag:"1d",tier:["ps","High · 5★"],sn:"Dr. Okafor explained every step of my implant…",
+  match:[["ok","CRM match","Robert L. · implant · Dr. Okafor · Mon 2 Nov",95]],
+  brief:[["History","Patient for 4 years · $3,900 implant"],["Channel","Personal thank-you, then referral invite"]],
+  say:["Thank him. No reward for the review","Invite him to refer a friend: the reward attaches to the referral"],
+  reply:"Thank you for the kind words. We're glad you're feeling well.",act:"Send thank-you"}
+];
+let rsel=1;
+function renderRev(){
+  $('#rlist').innerHTML=REV.map(r=>`<button role="option" aria-selected="${r.id===rsel}" data-id="${r.id}"><span class="chip ${r.tier[0]}">${r.tier[1]}</span><span class="nm">${esc(r.nm)} <span class="stars">${'★'.repeat(r.st)}</span></span><span class="ag">${r.ag}</span><span class="sn">${esc(r.sn)}</span></button>`).join('');
+  const r=REV.find(x=>x.id===rsel);
+  $('#rcard').innerHTML=`<div class="q">"${esc(r.sn.replace('…',''))}…"</div>
+   <div class="sec"><span class="cap">Who wrote it</span><div class="ladder">${r.match.map((m,i)=>`<div class="rung ${m[0]}" style="animation-delay:${i*.12}s"><span class="dt">${m[0]==='ok'?'✓':i+1}</span><span><b>${m[1]}</b> · ${esc(m[2])}${m[3]?`<div class="conf"><i data-w="${m[3]}"></i></div><span class="mono" style="font-size:11.5px;color:var(--mut)">${m[3]}% confidence</span>`:''}</span></div>`).join('')}</div></div>
+   <div class="sec"><span class="cap">Brief</span><div class="brief"><dl>${r.brief.map(b=>`<dt>${b[0]}</dt><dd>${esc(b[1])}</dd>`).join('')}</dl><ul style="margin:4px 0 0;padding-left:18px">${r.say.map(s=>`<li>${esc(s)}</li>`).join('')}</ul></div></div>
+   <div class="sec"><span class="cap">Public line</span><div class="reply">${esc(r.reply)}</div></div>
+   <div class="acts"><button class="btn p" data-t="${r.act==='Call Priya'?'Calling Priya. The brief stays open on your phone.':r.act==='Keep watching'?'Watching for a text to your number.':'Thank-you sent with a referral invite.'}">${r.act}</button><button class="btn" data-t="Tier changed. This goes into the training set.">Change tier</button><button class="btn" data-t="Saved. Your edits count toward the autonomy bar.">Edit reply</button></div><div class="toast" role="status"></div>`;
+  requestAnimationFrame(()=>$$('#rcard .conf i').forEach(i=>i.style.width=i.dataset.w+'%'));
+}
+$('#rlist').addEventListener('click',e=>{const b=e.target.closest('button');if(b){rsel=+b.dataset.id;renderRev()}});
+$('#rcard').addEventListener('click',e=>{const b=e.target.closest('[data-t]');if(b)$('#rcard .toast').textContent=b.dataset.t});
+$$('[data-seg]').forEach(g=>g.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;g.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b))}));
+$$('.sw:not([disabled])').forEach(s=>s.addEventListener('click',()=>{const on=s.getAttribute('aria-checked')!=='true';s.setAttribute('aria-checked',on);if(s.id==='gateSw')$('#gateText').textContent=on?'On. AI posts 4 and 5-star replies. It switches back to drafts if you start editing more than 10%.':'You approved 94% of drafts unchanged over 6 weeks. The bar is 90%.'}));
+function enterClinic(p){
+  p=p||$('#cside [aria-selected="true"]').dataset.p;
+  if(p==='c-over'){countUp($('#c-over'));restart($('#c-over'))}
+  if(p==='c-rev') renderRev();
+  if(p==='c-set'){const g=$('#gateBar');g.style.width='0';requestAnimationFrame(()=>requestAnimationFrame(()=>g.style.width='94%'))}
+}
+tabs('#cside',enterClinic);
+
+/* ---------- agency ---------- */
+const V={
+ dental:{n:"Dental",d:"Healthcare rules on",trig:"Appointment marked done",delay:"2 hours, SMS first",policy:"4–5★ draft until earned · 1–3★ to owner · health words always a person",comp:"Patient privacy mode locked on · BAA required",voice:"Human call for High · AI voice for Medium with consent"},
+ med:{n:"Med spa",d:"Healthcare rules on",trig:"Treatment marked done",delay:"3 hours, SMS first",policy:"Same as dental · photos never referenced in replies",comp:"Patient privacy mode locked on · BAA required",voice:"Human call for High · AI voice for Medium with consent"},
+ home:{n:"Home services",d:"Job-based",trig:"Job closed and invoice paid",delay:"1 hour, SMS first",policy:"4–5★ auto after 4 weeks · safety words always a person",comp:"Standard",voice:"Owner calls High · AI voice for Medium with consent"},
+ rest:{n:"Restaurant",d:"Visit-based",trig:"Card payment captured",delay:"Next morning, email first",policy:"4–5★ auto after 2 weeks · food safety always a person",comp:"Standard",voice:"SMS only (low ticket)"}
+};
+let vsel='dental';
+function renderOnb(){
+  $('#verts').innerHTML=Object.entries(V).map(([k,v])=>`<button class="vt" aria-pressed="${k===vsel}" data-k="${k}"><b>${v.n}</b><span>${v.d}</span></button>`).join('');
+  const v=V[vsel]; const items=[["Ask fires on",v.trig],["Send after",v.delay],["Reply policy",v.policy],["Follow-up",v.voice],["Compliance",v.comp],["Client approves","The policy once, in a 3-minute call"]];
+  $('#applied').innerHTML=items.map((it,i)=>`<div class="ap"><span class="cap">${it[0]}</span><span class="v" style="animation-delay:${i*.07}s">${esc(it[1])}</span></div>`).join('');
+  const ck=[["g","Google Business Profile connected","1 location"],["g","Contacts and appointments imported","2,418 patients"],["g","Consent read from intake forms","1,902 with SMS consent"],["p","A2P 10DLC brand registration","pending · usually 2 days"],["p","Client approves the reply policy","link sent"]];
+  $('#checks').innerHTML=ck.map((c,i)=>`<div class="ck" style="animation-delay:${.3+i*.12}s"><span class="dt ${c[0]==='p'?'p':''}">${c[0]==='p'?'…':'✓'}</span><span>${c[1]}</span><span class="mono" style="font-size:12px;color:var(--mut)">${c[2]}</span></div>`).join('');
+}
+$('#verts').addEventListener('click',e=>{const b=e.target.closest('button');if(b){vsel=b.dataset.k;renderOnb()}});
+const F=[["Glow Med Spa · Phoenix","Med spa",6.1,48,"9.2h",["md","Asks paused · opt-outs 1.3%"],true],["Bella Cucina · Denver","Restaurant",18.4,31,"5.1h",["md","Match rate below 40%"],true],["Smile Studio · Austin","Dental",10.3,74,"3.5h",["lo","Healthy"]],["Prime Roofing · Tampa","Home services",7.8,82,"2.2h",["lo","Healthy"]],["Smile Studio · Round Rock","Dental",9.6,71,"4.0h",["lo","Healthy"]],["QuickFix Plumbing · Austin","Home services",8.4,79,"1.9h",["lo","Healthy"]],["Lakeside Dental · Dallas","Dental",11.2,76,"3.1h",["lo","Healthy"]]];
+function renderFleet(){$('#fleet').innerHTML=F.map((r,i)=>`<tr class="${r[6]?'flag':''}" style="animation-delay:${i*.05}s"><td><b style="font-weight:600">${r[0]}</b></td><td>${r[1]}</td><td class="n">${r[2].toFixed(1)}</td><td><span class="mini"><i style="width:${r[3]}%"></i></span><span class="mono">${r[3]}%</span></td><td class="n">${r[4]}</td><td><span class="chip ${r[5][0]}">${r[5][1]}</span></td></tr>`).join('')}
+const Q=[["hi","High","Smile Studio · Austin","1★ health content, matched","brief sent to owner"],["hi","High","Prime Roofing · Tampa","1★ safety: nails left on a driveway","owner to call"],["md","Medium","Glow Med Spa · Phoenix","Two possible matches: Dana R. or Dana K.","confirm match"],["md","Medium","Bella Cucina · Denver","Unmatched, text-in line posted","day 0 of 14"],["ps","High · 5★","Smile Studio · Round Rock","Detailed implant review","referral invite"],["lo","Low","QuickFix Plumbing · Austin","3★ late arrival (client asked to see 3★)","draft ready"]];
+function renderQ(){$('#aq').innerHTML=Q.map((q,i)=>`<button style="opacity:0;animation:pop .35s ${i*.06}s var(--ease) forwards"><span class="chip ${q[0]}">${q[1]}</span><span class="nm">${q[2]}</span><span class="ag">${q[4]}</span><span class="sn">${q[3]}</span></button>`).join('')}
+function enterAgency(p){
+  p=p||$('#aside [aria-selected="true"]').dataset.p;
+  if(p==='a-onb') renderOnb(); if(p==='a-fleet') renderFleet(); if(p==='a-queue') renderQ();
+  if(p==='a-plat'){ $$('#a-plat .bar i').forEach(i=>{i.style.width='0';requestAnimationFrame(()=>requestAnimationFrame(()=>i.style.width=i.dataset.w+'%'))}) }
+}
+tabs('#aside',enterAgency);
+
+/* ---------- boot ---------- */
+renderScene();
+const h=(location.hash||'#patient').slice(1); setView(['patient','clinic','agency'].includes(h)?h:'patient',false);
+document.fonts&&document.fonts.ready.then(pill);
+addEventListener('keydown',e=>{ if(!$('#v-patient').classList.contains('on')||e.target.closest('input,textarea')) return; if(e.key==='ArrowRight')$('#sNext').click(); if(e.key==='ArrowLeft')$('#sPrev').click(); });
 </script>
 </body>
 </html>
