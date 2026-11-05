@@ -1,195 +1,245 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
-<title>Reputation Recovery Queue</title>
-<meta name="claude:viewport-fit-sides" content="cover">
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>One Bad Visit: the Reputation Loop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
-</head><body>
 <style>
-/* Layout: agency exception queue (left) drives a recovery card (right); stacks on phones. */
+/* Layout: story panel (left) + product screen (right); a bet-labelled progress rail on top. Light, single look matching the doc. */
 :root{
-  --bg:#f5f7f8; --surface:#ffffff; --fg:#17232b; --muted:#5b6b75; --line:#dbe3e7;
-  --accent:#0f6e74; --accent-soft:#e2f1f1;
-  --high:#b42318; --high-soft:#fdecea; --med:#a15c07; --med-soft:#fdf3e2; --low:#3b6e3b; --low-soft:#e9f3e8;
-  --pos:#1d5fa8; --pos-soft:#e6eff9;
-  --f-body:"Public Sans", system-ui, -apple-system, sans-serif;
-  --f-mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --ink:#10286e; --ink2:#2a3f80; --mut:#5b6b93; --or:#d9822b; --orS:#fdf0e3; --fill:#e8eef9; --line:#c9d4ea; --bg:#f6f8fc; --card:#fff;
+  --red:#b4442e; --redS:#fbe9e5; --amb:#a15c07; --ambS:#fdf3e2; --grn:#2f7d4f; --grnS:#e6f3ea; --blu:#1d5fa8; --bluS:#e6eff9;
+  --f:"Public Sans",Arial,sans-serif; --m:"IBM Plex Mono",ui-monospace,Menlo,monospace;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0f171b; --surface:#16222a; --fg:#e4ecef; --muted:#93a4ad; --line:#26353d;
-  --accent:#5cc3c8; --accent-soft:#16363a;
-  --high:#f27b6f; --high-soft:#3a1d1b; --med:#e6a94f; --med-soft:#3a2b14; --low:#8cc78a; --low-soft:#1d2f1d;
-  --pos:#7fb2ea; --pos-soft:#1a2b40; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#0f171b; --surface:#16222a; --fg:#e4ecef; --muted:#93a4ad; --line:#26353d;
-  --accent:#5cc3c8; --accent-soft:#16363a;
-  --high:#f27b6f; --high-soft:#3a1d1b; --med:#e6a94f; --med-soft:#3a2b14; --low:#8cc78a; --low-soft:#1d2f1d;
-  --pos:#7fb2ea; --pos-soft:#1a2b40; color-scheme:dark}
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.5}
-.wrap{max-width:1180px;margin:0 auto;padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:16px}
-header{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:baseline;justify-content:space-between}
-h1{font-size:20px;margin:0;text-wrap:balance}
-.note{color:var(--muted);font-size:12.5px}
-.stats{display:flex;flex-wrap:wrap;gap:8px}
-.stat{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 12px;display:grid}
-.stat b{font-family:var(--f-mono);font-size:16px;font-variant-numeric:tabular-nums}
-.stat span{font-size:11.5px;color:var(--muted)}
-.main{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:16px;align-items:start}
-@media (max-width:860px){.main{grid-template-columns:1fr}}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;min-width:0}
-.panel h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0;padding:12px 14px;border-bottom:1px solid var(--line)}
-.queue{list-style:none;margin:0;padding:0}
-.queue button{all:unset;box-sizing:border-box;width:100%;cursor:pointer;display:grid;grid-template-columns:auto 1fr auto;gap:4px 10px;padding:11px 14px;border-bottom:1px solid var(--line)}
-.queue button:hover{background:var(--accent-soft)}
-.queue button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.queue button[aria-current="true"]{background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
-.stars{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
-.q-client{font-weight:600}
-.q-snip{grid-column:2/4;color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.q-age{font-family:var(--f-mono);font-size:11.5px;color:var(--muted)}
-.chips{display:flex;flex-wrap:wrap;gap:6px}
-.chip{font-size:11px;font-weight:600;border-radius:999px;padding:2px 8px;letter-spacing:.02em;white-space:nowrap}
-.c-high{background:var(--high-soft);color:var(--high)}.c-med{background:var(--med-soft);color:var(--med)}.c-low{background:var(--low-soft);color:var(--low)}
-.c-neg{background:var(--high-soft);color:var(--high)}.c-pos{background:var(--pos-soft);color:var(--pos)}
-.c-plain{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
-.policy{padding:10px 14px;font-size:12.5px;color:var(--muted)}
-.card{padding:16px;display:grid;gap:16px}
-.review{border-left:3px solid var(--line);padding-left:12px}
-.review p{margin:4px 0 0}
-.sec h3{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
-.grid{display:grid;grid-template-columns:auto repeat(3,1fr);gap:4px;font-size:12px;text-align:center;max-width:380px}
-.grid div{padding:6px 4px;border-radius:6px;background:var(--bg);color:var(--muted)}
-.grid .h{background:none;font-weight:600}
-.grid .on{outline:2px solid var(--accent);color:var(--fg);font-weight:600;background:var(--accent-soft)}
-.ladder{list-style:none;margin:0;padding:0;display:grid;gap:6px}
-.ladder li{display:grid;grid-template-columns:22px 1fr;gap:8px;align-items:start}
-.dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:10px;font-weight:700;margin-top:1px}
-.done .dot{background:var(--accent);border-color:var(--accent);color:var(--surface)}
-.cur .dot{border-color:var(--accent);color:var(--accent)}
-.skip{color:var(--muted)}
-.brief{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:6px;font-size:13px}
-.kv{display:grid;grid-template-columns:110px 1fr;gap:4px 10px}
-.kv dt{color:var(--muted)}.kv dd{margin:0}
-.reply{font-family:var(--f-mono);font-size:12.5px;background:var(--bg);border:1px dashed var(--line);border-radius:8px;padding:10px 12px}
-.actions{display:flex;flex-wrap:wrap;gap:8px}
-.btn{font:inherit;font-weight:600;font-size:13px;border-radius:8px;padding:8px 14px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--fg)}
-.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
-.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.toast{font-size:12.5px;color:var(--accent);min-height:1.2em}
-.guard{font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:10px}
-@media (prefers-reduced-motion:no-preference){.queue button{transition:background .12s}}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);font-size:15px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding:20px max(16px,env(safe-area-inset-right)) 40px max(16px,env(safe-area-inset-left));display:grid;gap:16px}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:6px 16px}
+h1{font-size:20px;margin:0}
+.sub{color:var(--mut);font-size:13px}
+.sub a{color:var(--or)}
+.rail{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.rail button{all:unset;cursor:pointer;display:grid;gap:4px;font-size:11.5px;color:var(--mut);text-align:left}
+.rail button i{display:block;height:5px;border-radius:3px;background:var(--line)}
+.rail button.done i{background:var(--ink)} .rail button.cur i{background:var(--or)} .rail button.cur{color:var(--ink);font-weight:700}
+.rail button:focus-visible{outline:2px solid var(--or);outline-offset:3px;border-radius:4px}
+@media (max-width:760px){.rail span{display:none}}
+.stage{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:18px;align-items:start}
+@media (max-width:900px){.stage{grid-template-columns:1fr}}
+.story{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;display:grid;gap:12px}
+.step{font-family:var(--m);font-size:12px;color:var(--mut)}
+.story h2{margin:0;font-size:24px;line-height:1.25;text-wrap:balance}
+.bet{justify-self:start;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--orS);color:var(--or);letter-spacing:.02em}
+.story p{margin:0;color:var(--ink2)}
+.knows{background:var(--bg);border-radius:8px;padding:10px 12px;font-size:13px}
+.knows b{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin-bottom:4px}
+.knows ul{margin:0;padding-left:18px}
+.metric{display:flex;gap:10px;align-items:center;border-top:1px solid var(--line);padding-top:12px;font-size:13px}
+.metric .k{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+.metric .v{font-weight:700}
+.nav{display:flex;gap:8px;justify-content:space-between}
+.btn{font:inherit;font-weight:600;font-size:14px;border-radius:8px;padding:9px 16px;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+.btn.p{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn:disabled{opacity:.4;cursor:default}
+.btn:focus-visible{outline:2px solid var(--or);outline-offset:2px}
+.screen{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;min-height:460px;display:grid;gap:12px;align-content:start}
+.cap{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);font-weight:700}
+.chip{display:inline-block;font-size:11px;font-weight:700;border-radius:999px;padding:2px 8px;white-space:nowrap}
+.hi{background:var(--redS);color:var(--red)}.md{background:var(--ambS);color:var(--amb)}.lo{background:var(--grnS);color:var(--grn)}.ps{background:var(--bluS);color:var(--blu)}.nt{background:var(--bg);color:var(--mut);border:1px solid var(--line)}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start}
+.phone{width:290px;max-width:100%;border:10px solid #1f2b4d;border-radius:30px;background:#f2f4f8;padding:14px 10px;display:grid;gap:8px;min-height:420px;align-content:start}
+.phone .top{font-size:11px;color:var(--mut);text-align:center}
+.sms{background:#fff;border-radius:14px;padding:9px 11px;font-size:13px;max-width:92%;box-shadow:0 1px 0 rgba(16,40,110,.08)}
+.sms.me{justify-self:end;background:var(--ink);color:#fff}
+.notif{background:#fff;border-radius:14px;padding:10px 12px;font-size:13px;display:grid;gap:4px;box-shadow:0 1px 0 rgba(16,40,110,.08)}
+.notif .t{font-weight:700}
+.panel{flex:1;min-width:240px;border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:8px;font-size:13px}
+.ev{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:start}
+.ev .d{width:10px;height:10px;border-radius:50%;background:var(--ink);margin-top:5px}
+.ev .d.o{background:var(--or)} .ev .d.g{background:var(--grn)} .ev .d.x{background:var(--line)}
+.mono{font-family:var(--m);font-size:12.5px}
+.review{border-left:3px solid var(--red);padding:6px 12px;background:var(--bg);border-radius:0 8px 8px 0}
+.stars{font-family:var(--m);color:var(--amb)}
+.grid{display:grid;grid-template-columns:auto repeat(3,1fr);gap:4px;font-size:12px;text-align:center;max-width:420px}
+.grid div{padding:7px 4px;border-radius:6px;background:var(--bg);color:var(--mut)}
+.grid .h{background:none;font-weight:700}
+.grid .on{outline:2px solid var(--or);background:var(--orS);color:var(--ink);font-weight:700}
+.lad{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.lad li{display:grid;grid-template-columns:24px 1fr;gap:8px;font-size:13px}
+.dot{width:20px;height:20px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--mut)}
+.ok .dot{background:var(--ink);border-color:var(--ink);color:#fff}
+.wait .dot{border-color:var(--or);color:var(--or)}
+.bar{height:10px;border-radius:5px;background:var(--fill);overflow:hidden}.bar i{display:block;height:100%;background:var(--ink)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.kpi{border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:6px}
+.kpi .n{font-family:var(--m);font-size:22px;font-weight:500}
+.kpi .l{font-size:12px;color:var(--mut)}
+.cmp{display:grid;grid-template-columns:70px 1fr 54px;gap:6px;align-items:center;font-size:12px}
+.q{display:grid;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.q div{display:grid;grid-template-columns:auto 1fr auto;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);font-size:13px;align-items:center}
+.q div:last-child{border-bottom:0}
+.note{font-size:12px;color:var(--mut)}
+.policy{display:grid;gap:6px;font-size:13px}
+.policy label{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--line);border-radius:8px}
+@media (prefers-reduced-motion:no-preference){.screen>*{animation:in .35s ease both}.screen>*:nth-child(2){animation-delay:.08s}.screen>*:nth-child(3){animation-delay:.16s}@keyframes in{from{opacity:.0;transform:translateY(6px)}to{opacity:1;transform:none}}}
 </style>
-
+</head>
+<body>
 <div class="wrap">
   <header>
     <div>
-      <h1>Exception queue · Brightline Agency</h1>
-      <div class="note">Illustrative prototype for the HighLevel R2 take-home. All names and data are made up.</div>
-    </div>
-    <div class="stats" aria-label="This week across 80 client locations">
-      <div class="stat"><b>612</b><span>reviews this week</span></div>
-      <div class="stat"><b>571</b><span>handled under policy</span></div>
-      <div class="stat"><b id="open-count">6</b><span>need a person</span></div>
+      <h1>One bad visit, start to finish</h1>
+      <div class="sub">How the 2027 reputation loop works, one bet at a time. Illustrative: all names and numbers are made up. <a href="../">Back to the strategy</a></div>
     </div>
   </header>
-
-  <div class="main">
-    <section class="panel" aria-label="Exceptions">
-      <h2>Needs a person · sorted by tier, then age</h2>
-      <ul class="queue" id="queue"></ul>
-      <div class="policy">Everything else ran under each client's approved policy: positive replies posted, asks sent, Low negatives answered. See the weekly client report.</div>
+  <nav class="rail" id="rail" aria-label="Steps"></nav>
+  <div class="stage">
+    <section class="story" aria-live="polite">
+      <div class="step" id="stepn"></div>
+      <h2 id="title"></h2>
+      <span class="bet" id="bet"></span>
+      <div id="story" style="display:grid;gap:10px"></div>
+      <div class="knows" id="knows"></div>
+      <div class="metric"><span class="k">Moves</span><span class="v" id="metric"></span></div>
+      <div class="nav"><button class="btn" id="prev">← Back</button><button class="btn p" id="next">Next →</button></div>
     </section>
-
-    <section class="panel" aria-label="Recovery card">
-      <h2>Recovery card</h2>
-      <div class="card" id="card"></div>
-    </section>
+    <section class="screen" id="screen" aria-label="Product screen"></section>
   </div>
 </div>
 
 <script>
-const items=[
- {id:1,client:"Smile Studio Dental · Austin",stars:1,sent:"neg",tier:"High",age:"38m",platform:"Google",
-  text:"Waited 50 minutes, then the hygienist was rough and dismissive. My gums bled for two days. Won't be back.",
-  reason:"Health content + staff described",match:{state:"auto",conf:91,who:"Priya S.",visit:"Cleaning · Dr. Mehta · Tue 3 Nov, 10:30",spend:"$180 · patient since 2021 · 7 visits"},
-  call:"Human call (High)",consent:"Call consent on file (intake form, 2021)",
-  brief:["Apologise for the wait; the 3 Nov rota had one hygienist out","Offer a free follow-up with a different hygienist","Don't discuss treatment details in any public reply"],
-  reply:"Thanks for talking with us, Priya. Glad we could sort this out.",vertical:"Healthcare: PHI mode on"},
- {id:2,client:"Prime Roofing · Tampa",stars:1,sent:"neg",tier:"High",age:"2h",platform:"Google",
-  text:"Crew left nails all over my driveway. My kid stepped on one. Called twice, nobody called back.",
-  reason:"Safety + viral reach (local group share)",match:{state:"auto",conf:84,who:"Marcus T.",visit:"Roof repair · Crew B · Fri 30 Oct",spend:"$4,200 · first job"},
-  call:"Human call (High)",consent:"Call consent on file (quote form)",
-  brief:["Two missed callbacks in Conversations on 31 Oct and 2 Nov","Offer a same-day magnetic sweep plus a credit","Owner, not the AM, makes this call"],
-  reply:"Marcus, we're sorry. We've spoken and we're making it right.",vertical:"Home services"},
- {id:3,client:"Glow Med Spa · Phoenix",stars:2,sent:"neg",tier:"Med",age:"4h",platform:"Facebook",
-  text:"Booked a facial, got charged for a peel I didn't ask for. Front desk was unhelpful.",
-  reason:"Billing complaint, matched, normal value",match:{state:"confirm",conf:62,who:"Dana R. (or Dana K.)",visit:"Facial · Sat 31 Oct",spend:"$145"},
-  call:"AI voice or SMS (Medium)",consent:"SMS consent only, so SMS",
-  brief:["Two Danas visited that day; confirm the match before contacting","Refund the peel difference if the invoice shows it"],
-  reply:"Thanks for letting us know. We've reached out privately to fix this.",vertical:"Healthcare-adjacent: PHI mode on"},
- {id:4,client:"Bella Cucina · Denver",stars:1,sent:"neg",tier:"Med",age:"6h",platform:"Google",
-  text:"Worst service ever. Never coming back.",
-  reason:"Unmatched, anonymous name",match:{state:"ingress",conf:0,who:"No CRM match (display name: \"J\")",visit:"Ingress line posted 6h ago, waiting",spend:"Day 0 of 14"},
-  call:"None until they text in",consent:"Captured by the ingress form",
-  brief:["Reply posted with: Text CARE to the number on this profile","If no reply in 14 days and no visit or payment match, build an evidence pack"],
-  reply:"We're sorry to hear this. We'd like to make it right. Text CARE to the number on this profile and we'll call you.",vertical:"Restaurant"},
- {id:5,client:"Smile Studio Dental · Round Rock",stars:5,sent:"pos",tier:"High",age:"1d",platform:"Google",
-  text:"Dr. Okafor explained every step of my implant and the team checked on me the next day. Best dental experience I've had in 20 years.",
-  reason:"Detailed + high-LTV patient",match:{state:"auto",conf:95,who:"Robert L.",visit:"Implant · Dr. Okafor · Mon 2 Nov",spend:"$3,900 · 4 years"},
-  call:"Personal thank-you from the owner",consent:"Call consent on file",
-  brief:["Thank him; no reward for the review","Invite him to the referral programme (the reward attaches to the referral)"],
-  reply:"Thank you so much for the kind words. We're glad you're feeling well.",vertical:"Healthcare: PHI mode on"},
- {id:6,client:"QuickFix Plumbing · Austin",stars:3,sent:"neg",tier:"Low",age:"1d",platform:"Google",
-  text:"Fixed the leak but came 2 hours late.",
-  reason:"Client policy: always show me 3★",match:{state:"auto",conf:88,who:"Lena W.",visit:"Leak repair · Tech: Sam · Wed 4 Nov",spend:"$260"},
-  call:"No outreach (Low)",consent:"n/a",
-  brief:["Draft is grounded: the visit ran late because of an earlier emergency job"],
-  reply:"Thanks, Lena. Sorry we were late on Wednesday. We've adjusted Sam's schedule so it doesn't happen again.",vertical:"Home services"}
+const S=[
+{rail:"Visit ends",title:"The visit ends, and the ask goes out within hours",bet:"Table stakes · Event-triggered asks",
+ story:["Today, asks go out as a monthly batch blast, so most happy patients are never asked.","In 2027 the ask fires off the event HighLevel already owns: the appointment is marked done. It goes by SMS within two hours, inside quiet hours, only with consent.","It also knows when <b>not</b> to ask. A patient with an open complaint is held back and routed to recovery first. Predicted sentiment never decides who gets asked; that would be review gating."],
+ knows:["Appointment done · Dr. Mehta · cleaning","Paid $180 · no refund or dispute","SMS consent on file · not asked in 90 days","Open threads in Conversations"],
+ metric:"Genuine reviews per location (holdout: event asks vs batch)",
+ screen:`<div class="cap">Smile Studio Dental · Tuesday 3 Nov</div>
+ <div class="row">
+  <div class="phone"><div class="top">Messages · 12:47</div>
+   <div class="sms">Hi Priya, thanks for coming in today. How was your visit with Dr. Mehta? A quick Google review helps other patients find us: g.page/smilestudio</div>
+   <div class="note" style="text-align:center">Sent 12:47, 2h after checkout</div></div>
+  <div class="panel"><div class="cap">Ask agent · today</div>
+   <div class="ev"><span class="d g"></span><span><b>Priya S.</b> · ask sent by SMS<br><span class="note">Completed 10:30 · paid · consent ✓</span></span></div>
+   <div class="ev"><span class="d g"></span><span><b>Arjun K.</b> · ask sent by email<br><span class="note">Replies on email, not SMS</span></span></div>
+   <div class="ev"><span class="d o"></span><span><b>Maria L.</b> · <b>held back</b><br><span class="note">Open billing complaint in Conversations → recovery first</span></span></div>
+   <div class="ev"><span class="d x"></span><span><b>Tom R.</b> · held back<br><span class="note">No SMS consent · email ask tomorrow 10:00</span></span></div>
+  </div></div>`},
+{rail:"1★ lands",title:"Priya leaves a 1-star review. Triage decides how much it matters",bet:"Recovery · Triage on two axes",
+ story:["Not every review needs a person. Triage scores two separate things: sentiment, and stakes.","This one is High: it describes a health effect and names a staff member. Health, safety and legal words force High regardless of the model, because a missed High is the expensive mistake.","Low-stakes reviews get a grounded public reply and nobody's time."],
+ knows:["Review text and rating","Business vertical: healthcare (patient-data mode on)","Rubric: health, safety, legal, staff named, reach, customer value"],
+ metric:"Recall on High-stakes reviews (labelled eval set)",
+ screen:`<div class="cap">Reviews · new · Google</div>
+ <div class="review"><div><span class="stars">★☆☆☆☆</span> <span class="note">· "Priya S." · 2 hours ago</span></div>
+ <p style="margin:6px 0 0">Waited 50 minutes, then the hygienist was rough and dismissive. My gums bled for two days. Won't be back.</p></div>
+ <div class="cap" style="margin-top:6px">Triage: sentiment × stakes</div>
+ <div class="grid"><div class="h"></div><div class="h">Low</div><div class="h">Medium</div><div class="h">High</div>
+  <div class="h">Negative</div><div></div><div></div><div class="on">this review</div>
+  <div class="h">Positive</div><div></div><div></div><div></div></div>
+ <div class="row"><span class="chip hi">Health content</span><span class="chip hi">Staff described</span><span class="chip nt">Healthcare: no patient details in public</span></div>`},
+{rail:"Who wrote it?",title:"Who wrote it? The review is matched to a real visit",bet:"Bet 1 · Know the reviewer",
+ story:["Google display names are often nicknames, so name matching alone is weak. The match runs as a ladder.","<b>1. CRM match:</b> name, review time against visit windows, the staff or service mentioned. Here: 91% Priya S., Tuesday's cleaning.","<b>2. No match?</b> The public reply carries a way in: <i>\"Text CARE to the number on this profile\"</i>. No links, the listing's own number. Texting in captures the contact and call consent.","<b>3. Still silent after 14 days,</b> with no visit or payment on record: a fake-review evidence pack for the platform. A signal, never proof."],
+ knows:["Calendar: visits in the last 7 days","Payments and staff on each visit","Reviewer display name and posting time"],
+ metric:"Match rate on negative reviews (day-90 kill line: 40%)",
+ screen:`<div class="row">
+ <div class="panel"><div class="cap">Matched review</div>
+  <ul class="lad"><li class="ok"><span class="dot">✓</span><span><b>CRM match · 91%</b><br>Priya S. · cleaning · Dr. Mehta · Tue 3 Nov 10:30<br><span class="note">Waited 50 min (rota had one hygienist out)</span></span></li>
+  <li><span class="dot">2</span><span class="note">Text-in line not needed</span></li>
+  <li><span class="dot">3</span><span class="note">Platform DM not needed</span></li></ul></div>
+ <div class="panel"><div class="cap">Unmatched review, same day</div>
+  <div class="mono">"J" · ★☆☆☆☆ · "Worst service ever."</div>
+  <ul class="lad"><li><span class="dot">1</span><span>No CRM match</span></li>
+  <li class="wait"><span class="dot">2</span><span><b>Reply posted with the way in</b><br><span class="mono">"We'd like to make this right. Text CARE to the number on this profile and we'll call you."</span></span></li>
+  <li><span class="dot">3</span><span class="note">Day 0 of 14 · then evidence pack if no visit or payment</span></li></ul></div></div>`},
+{rail:"Recover",title:"The dentist gets a brief on his phone and calls Priya back",bet:"Bet 2 · Private recovery",
+ story:["The real conversation moves off the public page. For High stakes a <b>person</b> calls; the AI prepares the brief and books the slot.","For Medium stakes, an <b>AI voice call or SMS</b> goes out, only with prior consent (the FCC treats AI voices as \"artificial\" under the TCPA). It hands over to a person on anger or request.","A make-good is offered privately on a verified visit, capped and never tied to editing the review."],
+ knows:["The matched visit, spend and history","What went wrong that day (rota)","The business's reply policy and banned phrases","Consent per channel"],
+ metric:"Time to first contact on 1–3★ (target under 4h)",
+ screen:`<div class="row">
+ <div class="phone"><div class="top">Dr. Mehta's phone · 14:52</div>
+  <div class="notif"><span class="t">⚠ High-stakes review · Priya S.</span><span>Cleaning Tue 10:30 · patient since 2021 · 7 visits</span></div>
+  <div class="notif"><span class="t">Brief</span><span>• Apologise for the 50-min wait; one hygienist was out<br>• Offer a free follow-up with a different hygienist<br>• Don't discuss treatment in any public reply</span></div>
+  <div class="sms me" style="text-align:center">Call Priya now</div>
+  <div class="sms" style="text-align:center">Book for 17:30</div></div>
+ <div class="panel"><div class="cap">Medium case · AI voice, with consent</div>
+  <div class="mono" style="display:grid;gap:6px">
+   <span><b>AI:</b> Hi Dana, this is Glow Med Spa's assistant. I saw your note about Saturday's facial. Is now OK to talk?</span>
+   <span><b>Dana:</b> Yes. I was charged for a peel I didn't ask for.</span>
+   <span><b>AI:</b> I can see that on your invoice. I've refunded the $60 difference. Would you like a call from the manager too?</span>
+   <span><b>Dana:</b> No, that's fine. Thanks.</span></div>
+  <span class="note">Hands to a person on anger or request · refund within the make-good cap</span></div></div>`},
+{rail:"Loop closes",title:"The loop closes: a short public line, and Priya books again",bet:"Recovery → retention",
+ story:["After the call, the public reply is one line: no recap, no rebuttal, and in healthcare nothing that confirms she's a patient (HHS has fined practices for exactly that).","It's posted only if Priya agrees on the call. She may be invited to update her review, but never as a condition of the fix.","The outcome we count is not a changed star. It's that Priya books again."],
+ knows:["Call outcome: resolved, OK to note publicly","Next appointment booked"],
+ metric:"Recovered customers who rebook (vs a holdout not contacted)",
+ screen:`<div class="panel"><div class="cap">Public reply · posted 18:05</div>
+  <div class="mono">Thanks for talking with us, Priya. Glad we could sort this out.</div>
+  <span class="note">Human approved (High) · no details · patient-data filter passed</span></div>
+ <div class="panel"><div class="cap">Priya S. · CRM timeline</div>
+  <div class="ev"><span class="d"></span><span>Tue 10:30 · cleaning · Dr. Mehta</span></div>
+  <div class="ev"><span class="d"></span><span>Tue 12:47 · review ask sent (SMS)</span></div>
+  <div class="ev"><span class="d o"></span><span>Tue 14:40 · 1★ review · matched 91%</span></div>
+  <div class="ev"><span class="d o"></span><span>Tue 17:30 · call with Dr. Mehta · resolved</span></div>
+  <div class="ev"><span class="d g"></span><span><b>Wed 09:12 · booked follow-up · Thu 12 Nov</b></span></div></div>`},
+{rail:"Agency scale",title:"Now do that for 80 clients with one account manager",bet:"Bet 3 · Agency autopilot",
+ story:["Today every reply waits on client approval, one at a time. That's the agency headcount wall.","In 2027 each client approves a <b>policy once</b>: what AI may post, what needs them. Everything inside the policy runs on its own.","The account manager works <b>one queue</b> across all clients, holding only the exceptions. AI earns autonomy per category as approval rates hold, and loses it if edits rise."],
+ knows:["Each client's approved policy","Approval and edit rates per category","Triage tier and match for every review"],
+ metric:"Locations per account manager",
+ screen:`<div class="row">
+ <div class="panel" style="max-width:300px"><div class="cap">Smile Studio Dental · policy (approved once)</div>
+  <div class="policy">
+   <label>4–5★ replies post on their own <span class="chip lo">AI</span></label>
+   <label>3★ replies <span class="chip md">Draft → me</span></label>
+   <label>1–2★ replies <span class="chip md">Draft → me</span></label>
+   <label>Health, legal, staff named <span class="chip hi">Always a person</span></label>
+   <label>Asks after every completed visit <span class="chip lo">AI</span></label></div></div>
+ <div class="panel"><div class="cap">Brightline Agency · this week</div>
+  <div class="row" style="gap:18px"><div><div class="mono" style="font-size:20px">612</div><span class="note">reviews</span></div><div><div class="mono" style="font-size:20px">606</div><span class="note">handled under policy</span></div><div><div class="mono" style="font-size:20px;color:var(--or)">6</div><span class="note">need a person</span></div></div>
+  <div class="q">
+   <div><span class="chip hi">High</span><span>Smile Studio · Austin · 1★ health</span><span class="note">brief ready</span></div>
+   <div><span class="chip hi">High</span><span>Prime Roofing · 1★ safety</span><span class="note">owner to call</span></div>
+   <div><span class="chip md">Med</span><span>Glow Med Spa · confirm match</span><span class="note">2 Danas</span></div>
+   <div><span class="chip md">Med</span><span>Bella Cucina · unmatched</span><span class="note">day 0/14</span></div>
+   <div><span class="chip ps">High · 5★</span><span>Smile Studio · detailed 5★</span><span class="note">referral invite</span></div>
+   <div><span class="chip lo">Low</span><span>QuickFix · 3★ (client asked to see)</span><span class="note">draft ready</span></div>
+  </div></div></div>`},
+{rail:"Outcome",title:"What it adds up to: locations that stay",bet:"The goal",
+ story:["Each bet moves one driver: more genuine reviews, bad visits recovered, more locations per account manager.","Together they move the outcome the charter is measured on: <b>location churn 20% lower than a matched cohort by April 2028</b>.","The proof comes early. At day 90 the holdout must show reviews 25% above batch asks, and matching must reach 40% of negative reviews, or the plan narrows."],
+ knows:["Holdouts on asks and on recovery","Billing data for churn, cohorted by vertical, size and tenure"],
+ metric:"Location churn vs matched cohort (the goal)",
+ screen:`<div class="cap">Brightline Agency · quarter view (illustrative)</div>
+ <div class="kpis">
+  <div class="kpi"><span class="l">Genuine reviews / location / month</span><div class="cmp"><span>Holdout</span><div class="bar"><i style="width:56%;background:var(--line)"></i></div><span class="mono">7.9</span></div><div class="cmp"><span>Event asks</span><div class="bar"><i style="width:72%"></i></div><span class="mono">10.1</span></div></div>
+  <div class="kpi"><span class="l">Median time to first contact, 1–3★</span><div class="cmp"><span>Before</span><div class="bar"><i style="width:100%;background:var(--line)"></i></div><span class="mono">3.2d</span></div><div class="cmp"><span>Now</span><div class="bar"><i style="width:5%"></i></div><span class="mono">3.5h</span></div></div>
+  <div class="kpi"><span class="l">Locations per account manager</span><div class="cmp"><span>Before</span><div class="bar"><i style="width:50%;background:var(--line)"></i></div><span class="mono">20</span></div><div class="cmp"><span>Now</span><div class="bar"><i style="width:80%"></i></div><span class="mono">32</span></div></div>
+  <div class="kpi"><span class="l">Monthly location churn</span><div class="cmp"><span>Cohort</span><div class="bar"><i style="width:75%;background:var(--line)"></i></div><span class="mono">3.0%</span></div><div class="cmp"><span>Using it</span><div class="bar"><i style="width:60%;background:var(--or)"></i></div><span class="mono">2.4%</span></div></div>
+ </div>
+ <div class="panel"><div class="cap">Guardrails (all within limits)</div>
+  <div class="row"><span class="chip lo">Platform removals ✓</span><span class="chip lo">SMS opt-outs 0.4% ✓</span><span class="chip lo">Asked vs organic star mix ✓</span><span class="chip lo">Patient-data incidents 0 ✓</span><span class="chip lo">Make-good abuse ✓</span></div></div>
+ <span class="note">Numbers are illustrative targets, not HighLevel data.</span>`}
 ];
-const tierClass={High:"c-high",Med:"c-med",Low:"c-low"};
-const q=document.getElementById("queue"),card=document.getElementById("card");
-let current=1;
-function esc(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
-function renderQueue(){
-  q.innerHTML=items.map(i=>`<li><button id="q${i.id}" aria-current="${i.id===current}" data-id="${i.id}">
-    <span class="chips"><span class="chip ${tierClass[i.tier]}">${i.tier==="Med"?"Medium":i.tier}</span><span class="chip ${i.sent==="pos"?"c-pos":"c-neg"}">${i.sent==="pos"?"Positive":"Negative"}</span></span>
-    <span class="q-client">${esc(i.client)}</span><span class="q-age">${i.age}</span>
-    <span class="q-snip">${"★".repeat(i.stars)} ${esc(i.text)}</span></button></li>`).join("");
-  document.getElementById("open-count").textContent=items.length;
+const rail=document.getElementById('rail'),$=id=>document.getElementById(id);
+let cur=0;
+function render(){
+  const s=S[cur];
+  rail.innerHTML=S.map((x,i)=>`<button class="${i<cur?'done':i===cur?'cur':''}" data-i="${i}" aria-current="${i===cur?'step':'false'}"><i></i><span>${i+1}. ${x.rail}</span></button>`).join('');
+  $('stepn').textContent=`Step ${cur+1} of ${S.length}`;
+  $('title').textContent=s.title; $('bet').textContent=s.bet;
+  $('story').innerHTML=s.story.map(p=>`<p>${p}</p>`).join('');
+  $('knows').innerHTML=`<b>What the system knows going in</b><ul>${s.knows.map(k=>`<li>${k}</li>`).join('')}</ul>`;
+  $('metric').textContent=s.metric;
+  $('screen').innerHTML=s.screen;
+  $('prev').disabled=cur===0; $('next').textContent=cur===S.length-1?'Start again ↺':'Next →';
+  try{history.replaceState(null,'','#step-'+(cur+1))}catch(e){}
 }
-function ladder(m){
-  const s=m.state;
-  const step=(cls,n,t,d)=>`<li class="${cls}"><span class="dot">${cls==="done"?"✓":n}</span><span><b>${t}</b><br><span class="note">${d}</span></span></li>`;
-  if(s==="auto")return step("done",1,"CRM auto-match",`${esc(m.who)} · ${m.conf}% confidence`)+step("skip",2,"Ingress line in reply","Not needed")+step("skip",3,"Platform DM","Not needed");
-  if(s==="confirm")return step("cur",1,"CRM auto-match: confirm",`${esc(m.who)} · ${m.conf}% confidence, below the auto bar`)+step("skip",2,"Ingress line in reply","Held until the match is confirmed")+step("skip",3,"Platform DM","Messenger available");
-  return step("done",1,"CRM auto-match","No match")+step("cur",2,"Ingress line in reply","Waiting for a text to the listing's number")+step("skip",3,"Platform DM","Google has none")+step("skip",4,"Fake-review path","Only after 14 days, no visit or payment match. A signal, never proof");
-}
-function renderCard(){
-  const i=items.find(x=>x.id===current);
-  const tiers=["Low","Med","High"];
-  const g=`<div class="h"></div>`+tiers.map(t=>`<div class="h">${t==="Med"?"Medium":t}</div>`).join("")+
-    ["neg","pos"].map(s=>`<div class="h">${s==="neg"?"Negative":"Positive"}</div>`+tiers.map(t=>`<div class="${i.sent===s&&i.tier===t?"on":""}">${i.sent===s&&i.tier===t?"this review":""}</div>`).join("")).join("");
-  card.innerHTML=`
-   <div class="review"><div class="chips"><span class="chip c-plain">${i.platform}</span><span class="chip c-plain">${esc(i.vertical)}</span><span class="stars">${"★".repeat(i.stars)}${"☆".repeat(5-i.stars)}</span></div>
-     <p>${esc(i.text)}</p><div class="note">${esc(i.client)} · ${i.age} ago</div></div>
-   <div class="sec"><h3>1 · Triage: sentiment × stakes</h3><div class="grid">${g}</div><div class="note" style="margin-top:6px">Why: ${esc(i.reason)}</div></div>
-   <div class="sec"><h3>2 · Match ladder</h3><ul class="ladder">${ladder(i.match)}</ul></div>
-   <div class="sec"><h3>3 · Private outreach</h3>
-     <div class="brief"><dl class="kv"><dt>Customer</dt><dd>${esc(i.match.who)}</dd><dt>Visit</dt><dd>${esc(i.match.visit)}</dd><dt>History</dt><dd>${esc(i.match.spend)}</dd><dt>Channel</dt><dd>${esc(i.call)}</dd><dt>Consent</dt><dd>${esc(i.consent)}</dd></dl>
-     <div><b>Brief</b><ul style="margin:4px 0 0;padding-left:18px">${i.brief.map(b=>`<li>${esc(b)}</li>`).join("")}</ul></div></div></div>
-   <div class="sec"><h3>4 · Public line (draft)</h3><div class="reply">${esc(i.reply)}</div>
-     <div class="note" style="margin-top:6px">${i.match.state==="ingress"?"Posted now. No links, the listing's own number, no accusation.":"Posted only after the call, and only if the customer agrees. No recap of what was said."}</div></div>
-   <div class="actions">
-     ${i.match.state==="confirm"?`<button class="btn primary" data-act="Match confirmed">Confirm Dana R.</button><button class="btn" data-act="Marked as not this person; the matcher learns">Not this person</button>`:
-       i.match.state==="ingress"?`<button class="btn primary" data-act="Watching for a reply to the ingress">Keep watching</button>`:
-       `<button class="btn primary" data-act="Callback booked; brief sent to the caller">Book callback</button>`}
-     <button class="btn" data-act="Re-tiered; added to the eval set">Change tier</button>
-     <button class="btn" data-act="Draft edit saved; edit distance feeds the autonomy gate">Edit draft</button>
-   </div>
-   <div class="toast" id="toast" role="status"></div>
-   <div class="guard">Guardrails on this card: no reward is tied to the review; the fix is never conditional on editing it; in PHI mode the public line never confirms a visit.</div>`;
-}
-q.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;current=+b.dataset.id;renderQueue();renderCard();document.getElementById("q"+current).focus()});
-card.addEventListener("click",e=>{const b=e.target.closest("[data-act]");if(b)document.getElementById("toast").textContent=b.dataset.act+" (demo).";});
-renderQueue();renderCard();
+function go(i){cur=(i+S.length)%S.length;render();}
+rail.addEventListener('click',e=>{const b=e.target.closest('button');if(b)go(+b.dataset.i)});
+$('prev').onclick=()=>go(cur-1); $('next').onclick=()=>go(cur===S.length-1?0:cur+1);
+document.addEventListener('keydown',e=>{if(e.key==='ArrowRight')$('next').click();if(e.key==='ArrowLeft'&&cur>0)go(cur-1)});
+const m=location.hash.match(/step-(\d)/); if(m)cur=Math.min(S.length-1,Math.max(0,+m[1]-1));
+render();
 </script>
-</body></html>
+</body>
+</html>
