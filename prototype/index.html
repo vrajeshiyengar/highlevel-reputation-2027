@@ -1,0 +1,195 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
+<title>Reputation Recovery Queue</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+</head><body>
+<style>
+/* Layout: agency exception queue (left) drives a recovery card (right); stacks on phones. */
+:root{
+  --bg:#f5f7f8; --surface:#ffffff; --fg:#17232b; --muted:#5b6b75; --line:#dbe3e7;
+  --accent:#0f6e74; --accent-soft:#e2f1f1;
+  --high:#b42318; --high-soft:#fdecea; --med:#a15c07; --med-soft:#fdf3e2; --low:#3b6e3b; --low-soft:#e9f3e8;
+  --pos:#1d5fa8; --pos-soft:#e6eff9;
+  --f-body:"Public Sans", system-ui, -apple-system, sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f171b; --surface:#16222a; --fg:#e4ecef; --muted:#93a4ad; --line:#26353d;
+  --accent:#5cc3c8; --accent-soft:#16363a;
+  --high:#f27b6f; --high-soft:#3a1d1b; --med:#e6a94f; --med-soft:#3a2b14; --low:#8cc78a; --low-soft:#1d2f1d;
+  --pos:#7fb2ea; --pos-soft:#1a2b40; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f171b; --surface:#16222a; --fg:#e4ecef; --muted:#93a4ad; --line:#26353d;
+  --accent:#5cc3c8; --accent-soft:#16363a;
+  --high:#f27b6f; --high-soft:#3a1d1b; --med:#e6a94f; --med-soft:#3a2b14; --low:#8cc78a; --low-soft:#1d2f1d;
+  --pos:#7fb2ea; --pos-soft:#1a2b40; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:16px}
+header{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:baseline;justify-content:space-between}
+h1{font-size:20px;margin:0;text-wrap:balance}
+.note{color:var(--muted);font-size:12.5px}
+.stats{display:flex;flex-wrap:wrap;gap:8px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 12px;display:grid}
+.stat b{font-family:var(--f-mono);font-size:16px;font-variant-numeric:tabular-nums}
+.stat span{font-size:11.5px;color:var(--muted)}
+.main{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:16px;align-items:start}
+@media (max-width:860px){.main{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;min-width:0}
+.panel h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0;padding:12px 14px;border-bottom:1px solid var(--line)}
+.queue{list-style:none;margin:0;padding:0}
+.queue button{all:unset;box-sizing:border-box;width:100%;cursor:pointer;display:grid;grid-template-columns:auto 1fr auto;gap:4px 10px;padding:11px 14px;border-bottom:1px solid var(--line)}
+.queue button:hover{background:var(--accent-soft)}
+.queue button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.queue button[aria-current="true"]{background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
+.stars{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.q-client{font-weight:600}
+.q-snip{grid-column:2/4;color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.q-age{font-family:var(--f-mono);font-size:11.5px;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:11px;font-weight:600;border-radius:999px;padding:2px 8px;letter-spacing:.02em;white-space:nowrap}
+.c-high{background:var(--high-soft);color:var(--high)}.c-med{background:var(--med-soft);color:var(--med)}.c-low{background:var(--low-soft);color:var(--low)}
+.c-neg{background:var(--high-soft);color:var(--high)}.c-pos{background:var(--pos-soft);color:var(--pos)}
+.c-plain{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.policy{padding:10px 14px;font-size:12.5px;color:var(--muted)}
+.card{padding:16px;display:grid;gap:16px}
+.review{border-left:3px solid var(--line);padding-left:12px}
+.review p{margin:4px 0 0}
+.sec h3{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.grid{display:grid;grid-template-columns:auto repeat(3,1fr);gap:4px;font-size:12px;text-align:center;max-width:380px}
+.grid div{padding:6px 4px;border-radius:6px;background:var(--bg);color:var(--muted)}
+.grid .h{background:none;font-weight:600}
+.grid .on{outline:2px solid var(--accent);color:var(--fg);font-weight:600;background:var(--accent-soft)}
+.ladder{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.ladder li{display:grid;grid-template-columns:22px 1fr;gap:8px;align-items:start}
+.dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:10px;font-weight:700;margin-top:1px}
+.done .dot{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.cur .dot{border-color:var(--accent);color:var(--accent)}
+.skip{color:var(--muted)}
+.brief{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:6px;font-size:13px}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:4px 10px}
+.kv dt{color:var(--muted)}.kv dd{margin:0}
+.reply{font-family:var(--f-mono);font-size:12.5px;background:var(--bg);border:1px dashed var(--line);border-radius:8px;padding:10px 12px}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.btn{font:inherit;font-weight:600;font-size:13px;border-radius:8px;padding:8px 14px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--fg)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.toast{font-size:12.5px;color:var(--accent);min-height:1.2em}
+.guard{font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:10px}
+@media (prefers-reduced-motion:no-preference){.queue button{transition:background .12s}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Exception queue · Brightline Agency</h1>
+      <div class="note">Illustrative prototype for the HighLevel R2 take-home. All names and data are made up.</div>
+    </div>
+    <div class="stats" aria-label="This week across 80 client locations">
+      <div class="stat"><b>612</b><span>reviews this week</span></div>
+      <div class="stat"><b>571</b><span>handled under policy</span></div>
+      <div class="stat"><b id="open-count">6</b><span>need a person</span></div>
+    </div>
+  </header>
+
+  <div class="main">
+    <section class="panel" aria-label="Exceptions">
+      <h2>Needs a person · sorted by tier, then age</h2>
+      <ul class="queue" id="queue"></ul>
+      <div class="policy">Everything else ran under each client's approved policy: positive replies posted, asks sent, Low negatives answered. See the weekly client report.</div>
+    </section>
+
+    <section class="panel" aria-label="Recovery card">
+      <h2>Recovery card</h2>
+      <div class="card" id="card"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+const items=[
+ {id:1,client:"Smile Studio Dental · Austin",stars:1,sent:"neg",tier:"High",age:"38m",platform:"Google",
+  text:"Waited 50 minutes, then the hygienist was rough and dismissive. My gums bled for two days. Won't be back.",
+  reason:"Health content + staff described",match:{state:"auto",conf:91,who:"Priya S.",visit:"Cleaning · Dr. Mehta · Tue 3 Nov, 10:30",spend:"$180 · patient since 2021 · 7 visits"},
+  call:"Human call (High)",consent:"Call consent on file (intake form, 2021)",
+  brief:["Apologise for the wait; the 3 Nov rota had one hygienist out","Offer a free follow-up with a different hygienist","Don't discuss treatment details in any public reply"],
+  reply:"Thanks for talking with us, Priya. Glad we could sort this out.",vertical:"Healthcare: PHI mode on"},
+ {id:2,client:"Prime Roofing · Tampa",stars:1,sent:"neg",tier:"High",age:"2h",platform:"Google",
+  text:"Crew left nails all over my driveway. My kid stepped on one. Called twice, nobody called back.",
+  reason:"Safety + viral reach (local group share)",match:{state:"auto",conf:84,who:"Marcus T.",visit:"Roof repair · Crew B · Fri 30 Oct",spend:"$4,200 · first job"},
+  call:"Human call (High)",consent:"Call consent on file (quote form)",
+  brief:["Two missed callbacks in Conversations on 31 Oct and 2 Nov","Offer a same-day magnetic sweep plus a credit","Owner, not the AM, makes this call"],
+  reply:"Marcus, we're sorry. We've spoken and we're making it right.",vertical:"Home services"},
+ {id:3,client:"Glow Med Spa · Phoenix",stars:2,sent:"neg",tier:"Med",age:"4h",platform:"Facebook",
+  text:"Booked a facial, got charged for a peel I didn't ask for. Front desk was unhelpful.",
+  reason:"Billing complaint, matched, normal value",match:{state:"confirm",conf:62,who:"Dana R. (or Dana K.)",visit:"Facial · Sat 31 Oct",spend:"$145"},
+  call:"AI voice or SMS (Medium)",consent:"SMS consent only, so SMS",
+  brief:["Two Danas visited that day; confirm the match before contacting","Refund the peel difference if the invoice shows it"],
+  reply:"Thanks for letting us know. We've reached out privately to fix this.",vertical:"Healthcare-adjacent: PHI mode on"},
+ {id:4,client:"Bella Cucina · Denver",stars:1,sent:"neg",tier:"Med",age:"6h",platform:"Google",
+  text:"Worst service ever. Never coming back.",
+  reason:"Unmatched, anonymous name",match:{state:"ingress",conf:0,who:"No CRM match (display name: \"J\")",visit:"Ingress line posted 6h ago, waiting",spend:"Day 0 of 14"},
+  call:"None until they text in",consent:"Captured by the ingress form",
+  brief:["Reply posted with: Text CARE to the number on this profile","If no reply in 14 days and no visit or payment match, build an evidence pack"],
+  reply:"We're sorry to hear this. We'd like to make it right. Text CARE to the number on this profile and we'll call you.",vertical:"Restaurant"},
+ {id:5,client:"Smile Studio Dental · Round Rock",stars:5,sent:"pos",tier:"High",age:"1d",platform:"Google",
+  text:"Dr. Okafor explained every step of my implant and the team checked on me the next day. Best dental experience I've had in 20 years.",
+  reason:"Detailed + high-LTV patient",match:{state:"auto",conf:95,who:"Robert L.",visit:"Implant · Dr. Okafor · Mon 2 Nov",spend:"$3,900 · 4 years"},
+  call:"Personal thank-you from the owner",consent:"Call consent on file",
+  brief:["Thank him; no reward for the review","Invite him to the referral programme (the reward attaches to the referral)"],
+  reply:"Thank you so much for the kind words. We're glad you're feeling well.",vertical:"Healthcare: PHI mode on"},
+ {id:6,client:"QuickFix Plumbing · Austin",stars:3,sent:"neg",tier:"Low",age:"1d",platform:"Google",
+  text:"Fixed the leak but came 2 hours late.",
+  reason:"Client policy: always show me 3★",match:{state:"auto",conf:88,who:"Lena W.",visit:"Leak repair · Tech: Sam · Wed 4 Nov",spend:"$260"},
+  call:"No outreach (Low)",consent:"n/a",
+  brief:["Draft is grounded: the visit ran late because of an earlier emergency job"],
+  reply:"Thanks, Lena. Sorry we were late on Wednesday. We've adjusted Sam's schedule so it doesn't happen again.",vertical:"Home services"}
+];
+const tierClass={High:"c-high",Med:"c-med",Low:"c-low"};
+const q=document.getElementById("queue"),card=document.getElementById("card");
+let current=1;
+function esc(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function renderQueue(){
+  q.innerHTML=items.map(i=>`<li><button id="q${i.id}" aria-current="${i.id===current}" data-id="${i.id}">
+    <span class="chips"><span class="chip ${tierClass[i.tier]}">${i.tier==="Med"?"Medium":i.tier}</span><span class="chip ${i.sent==="pos"?"c-pos":"c-neg"}">${i.sent==="pos"?"Positive":"Negative"}</span></span>
+    <span class="q-client">${esc(i.client)}</span><span class="q-age">${i.age}</span>
+    <span class="q-snip">${"★".repeat(i.stars)} ${esc(i.text)}</span></button></li>`).join("");
+  document.getElementById("open-count").textContent=items.length;
+}
+function ladder(m){
+  const s=m.state;
+  const step=(cls,n,t,d)=>`<li class="${cls}"><span class="dot">${cls==="done"?"✓":n}</span><span><b>${t}</b><br><span class="note">${d}</span></span></li>`;
+  if(s==="auto")return step("done",1,"CRM auto-match",`${esc(m.who)} · ${m.conf}% confidence`)+step("skip",2,"Ingress line in reply","Not needed")+step("skip",3,"Platform DM","Not needed");
+  if(s==="confirm")return step("cur",1,"CRM auto-match: confirm",`${esc(m.who)} · ${m.conf}% confidence, below the auto bar`)+step("skip",2,"Ingress line in reply","Held until the match is confirmed")+step("skip",3,"Platform DM","Messenger available");
+  return step("done",1,"CRM auto-match","No match")+step("cur",2,"Ingress line in reply","Waiting for a text to the listing's number")+step("skip",3,"Platform DM","Google has none")+step("skip",4,"Fake-review path","Only after 14 days, no visit or payment match. A signal, never proof");
+}
+function renderCard(){
+  const i=items.find(x=>x.id===current);
+  const tiers=["Low","Med","High"];
+  const g=`<div class="h"></div>`+tiers.map(t=>`<div class="h">${t==="Med"?"Medium":t}</div>`).join("")+
+    ["neg","pos"].map(s=>`<div class="h">${s==="neg"?"Negative":"Positive"}</div>`+tiers.map(t=>`<div class="${i.sent===s&&i.tier===t?"on":""}">${i.sent===s&&i.tier===t?"this review":""}</div>`).join("")).join("");
+  card.innerHTML=`
+   <div class="review"><div class="chips"><span class="chip c-plain">${i.platform}</span><span class="chip c-plain">${esc(i.vertical)}</span><span class="stars">${"★".repeat(i.stars)}${"☆".repeat(5-i.stars)}</span></div>
+     <p>${esc(i.text)}</p><div class="note">${esc(i.client)} · ${i.age} ago</div></div>
+   <div class="sec"><h3>1 · Triage: sentiment × stakes</h3><div class="grid">${g}</div><div class="note" style="margin-top:6px">Why: ${esc(i.reason)}</div></div>
+   <div class="sec"><h3>2 · Match ladder</h3><ul class="ladder">${ladder(i.match)}</ul></div>
+   <div class="sec"><h3>3 · Private outreach</h3>
+     <div class="brief"><dl class="kv"><dt>Customer</dt><dd>${esc(i.match.who)}</dd><dt>Visit</dt><dd>${esc(i.match.visit)}</dd><dt>History</dt><dd>${esc(i.match.spend)}</dd><dt>Channel</dt><dd>${esc(i.call)}</dd><dt>Consent</dt><dd>${esc(i.consent)}</dd></dl>
+     <div><b>Brief</b><ul style="margin:4px 0 0;padding-left:18px">${i.brief.map(b=>`<li>${esc(b)}</li>`).join("")}</ul></div></div></div>
+   <div class="sec"><h3>4 · Public line (draft)</h3><div class="reply">${esc(i.reply)}</div>
+     <div class="note" style="margin-top:6px">${i.match.state==="ingress"?"Posted now. No links, the listing's own number, no accusation.":"Posted only after the call, and only if the customer agrees. No recap of what was said."}</div></div>
+   <div class="actions">
+     ${i.match.state==="confirm"?`<button class="btn primary" data-act="Match confirmed">Confirm Dana R.</button><button class="btn" data-act="Marked as not this person; the matcher learns">Not this person</button>`:
+       i.match.state==="ingress"?`<button class="btn primary" data-act="Watching for a reply to the ingress">Keep watching</button>`:
+       `<button class="btn primary" data-act="Callback booked; brief sent to the caller">Book callback</button>`}
+     <button class="btn" data-act="Re-tiered; added to the eval set">Change tier</button>
+     <button class="btn" data-act="Draft edit saved; edit distance feeds the autonomy gate">Edit draft</button>
+   </div>
+   <div class="toast" id="toast" role="status"></div>
+   <div class="guard">Guardrails on this card: no reward is tied to the review; the fix is never conditional on editing it; in PHI mode the public line never confirms a visit.</div>`;
+}
+q.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;current=+b.dataset.id;renderQueue();renderCard();document.getElementById("q"+current).focus()});
+card.addEventListener("click",e=>{const b=e.target.closest("[data-act]");if(b)document.getElementById("toast").textContent=b.dataset.act+" (demo).";});
+renderQueue();renderCard();
+</script>
+</body></html>
